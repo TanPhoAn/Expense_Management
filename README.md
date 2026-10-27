@@ -4,10 +4,10 @@ PocketFlow là ứng dụng quản lý thu chi và tài chính cá nhân đượ
 
 ---
 
-## 🛠 Công Nghệ Sử Dụng (Mandatory Stack)
+## 🛠 1. Công Nghệ Sử Dụng (Mandatory Stack)
 
-- **Framework**: [Next.js](https://nextjs.org/) (App Router, React Server Components & Route Handlers)
-- **Ngôn ngữ**: [TypeScript](https://www.typescriptlang.org/) (Strict Mode)
+- **Framework**: [Next.js 14](https://nextjs.org/) (App Router, React Server Components & Route Handlers)
+- **Ngôn ngữ**: [TypeScript](https://www.typescriptlang.org/) (Strict Mode bật toàn diện)
 - **Styling & UI**: [Tailwind CSS](https://tailwindcss.com/) + [shadcn/ui](https://ui.shadcn.com/) + [Lucide Icons](https://lucide.dev/)
 - **Cơ sở dữ liệu**: [Neon PostgreSQL](https://neon.tech/) (Serverless Postgres with Connection Pooling)
 - **ORM & Migrations**: [Drizzle ORM](https://orm.drizzle.team/) & Drizzle Kit
@@ -15,149 +15,186 @@ PocketFlow là ứng dụng quản lý thu chi và tài chính cá nhân đượ
 - **Biểu đồ**: [Recharts](https://recharts.org/)
 - **Bảo mật & Phiên**: [jose](https://github.com/panva/jose) (Stateless encrypted JWT in HTTP-only cookies) + [bcryptjs](https://github.com/dcodeIO/bcrypt.js)
 - **Kiểm thử**: [Vitest](https://vitest.dev/) (Unit Tests) & [Playwright](https://playwright.dev/) (E2E Tests)
-- **Triển khai**: [Vercel](https://vercel.com/)
+- **Triển khai**: [Vercel](https://vercel.com/) (Serverless Node.js Runtime)
 
 ---
 
-## 🌟 Tính Năng Chính
+## 🏛 2. Kiến Trúc Ứng Dụng (Architecture)
 
-1. **Bảng điều khiển thông minh**:
-   - **Chi tiêu hôm nay**: Luôn tính đúng ngày hiện tại theo múi giờ `Asia/Ho_Chi_Minh` (kể cả khi đang chọn xem tháng khác).
-   - **Tổng thu nhập tháng & Tổng chi tiêu tháng**: Tính tổng thực tế từ database theo tháng được chọn.
-   - **Số dư còn lại**: Bằng Thu nhập - Chi tiêu (cho phép hiển thị âm khi thâm hụt).
-2. **Ghi chép giao dịch nhanh (Quick-Add Modal)**:
-   - Gợi ý danh mục tự động dựa trên từ khóa mô tả (VD: gõ *"Đi ăn trưa"* -> tự gợi ý *"Ăn uống"*; gõ *"Lương tháng 10"* -> tự gợi ý *"Lương"*).
-   - Nhập tiền VND chuẩn xác, ngăn ngừa lỗi làm tròn số thực (IEEE-754).
-3. **Sổ giao dịch (Transaction Ledger)**:
-   - Phân trang, tìm kiếm theo mô tả tiếng Việt (không dấu / có dấu).
-   - Lọc theo loại (Thu/Chi), khoảng ngày, danh mục.
-   - Chỉnh sửa và xóa giao dịch an toàn (ảnh hưởng ngay lập tức đến mọi báo cáo tài chính).
-4. **Quản lý danh mục**:
-   - 12 danh mục mặc định chuẩn hệ thống (Ăn uống, Di chuyển, Mua sắm, Tiện ích, Sức khỏe, Lương, Thưởng, Đầu tư...).
-   - Tạo danh mục tùy biến per-user với bảng màu nhận diện trực quan.
-   - Ngăn chặn xóa danh mục đang có giao dịch phát sinh.
-5. **Biểu đồ trực quan**:
-   - Xu hướng thu chi 6 tháng (Bar Chart).
-   - Cơ cấu phân bổ chi tiêu theo danh mục (Donut Chart).
+PocketFlow hoạt động hoàn toàn trên mô hình Single Deployment (Monolithic Next.js Fullstack), không sử dụng backend rời (như Spring Boot hay Express riêng biệt):
+
+```mermaid
+flowchart TD
+    Client["Browser / Mobile Client (React & Tailwind)"]
+    EdgeMW["Vercel Edge Middleware (Route Protection & Session Guard)"]
+    NextServer["Next.js Server (Route Handlers & Server Logic)"]
+    NeonPooler["Neon Connection Pooler (PgBouncer - Port 6543)"]
+    NeonDB["Neon PostgreSQL Database (Compute & Storage)"]
+
+    Client -->|"HTTP Requests + Cookies"| EdgeMW
+    EdgeMW -->|"Authenticated"| NextServer
+    NextServer -->|"import 'server-only' / Drizzle ORM"| NeonPooler
+    NeonPooler -->|"TCP Pool"| NeonDB
+```
+
+- **Mọi tương tác cơ sở dữ liệu** đều được bảo vệ trong tầng `server-only`, không bao giờ bundle xuống phía client.
+- **Bảo mật đa người dùng**: Mọi query SELECT, UPDATE, DELETE đều bắt buộc lọc theo `userId` lấy từ JWT session cookie đã xác thực. Không bao giờ tin tưởng client-supplied `userId`.
+- **Số học tài chính**: Cột `amount` lưu dưới dạng `NUMERIC(15, 2)`. Toàn bộ phép cộng trừ tính tổng được quy đổi sang `BigInt` (đơn vị xu nhỏ nhất) trước khi thực hiện để triệt tiêu sai số dấu phẩy động IEEE-754.
 
 ---
 
-## 🚀 Cài Đặt & Khởi Chạy
+## 🐘 3. Thiết Lập Neon PostgreSQL (Neon Setup)
 
-### 1. Cài đặt dependencies
+### 3.1. Tạo Project trên Neon
+1. Đăng ký/Đăng nhập tại [https://neon.tech](https://neon.tech).
+2. Nhấn **New Project**:
+   - **Project name**: `pocketflow`
+   - **Postgres version**: `16` (hoặc mới nhất)
+   - **Region**: Chọn vùng gần Việt Nam nhất (VD: `ap-southeast-1` - Singapore).
+
+### 3.2. Lấy Connection String
+Neon cung cấp hai loại URL trong mục **Dashboard -> Connection Details**:
+1. **Pooled Connection String (`-pooler`)**:
+   - Thích hợp cho Vercel Serverless Functions nhằm tái sử dụng kết nối (tránh cạn kiệt connection pool khi có nhiều request đồng thời).
+   - Đặt cho biến `DATABASE_URL`.
+2. **Direct Connection String (không có `-pooler`)**:
+   - Kết nối trực tiếp đến PostgreSQL compute node.
+   - Dùng khi chạy schema migrations (`drizzle-kit` DDL) để tránh lỗi transaction locking của PgBouncer.
+   - Đặt cho biến `DIRECT_DATABASE_URL`.
+
+---
+
+## 🔐 4. Cấu Hình Biến Môi Trường (Environment Variables)
+
+Xem mẫu đầy đủ tại [`.env.example`](file:///.env.example).
+
+| Tên biến | Phạm vi | Mô tả & Ví dụ |
+| :--- | :---: | :--- |
+| `DATABASE_URL` | **Server-Only** | Connection string Neon có pooling. Ví dụ: `postgresql://user:pass@ep-xyz-pooler.ap-southeast-1.aws.neon.tech/pocketflow_db?sslmode=require` |
+| `DIRECT_DATABASE_URL` | **Server-Only** | Connection string Neon trực tiếp (dùng chạy migration). Ví dụ: `postgresql://user:pass@ep-xyz.ap-southeast-1.aws.neon.tech/pocketflow_db?sslmode=require` |
+| `AUTH_SECRET` | **Server-Only** | Chuỗi ngẫu nhiên tối thiểu 32 ký tự dùng ký token JWT phiên làm việc. Tạo bằng: `openssl rand -base64 32` |
+| `NEXT_PUBLIC_APP_URL` | **Public / Client** | URL gốc của ứng dụng (VD: `https://pocketflow.vercel.app`). Chỉ các biến an toàn cho client mới dùng tiền tố `NEXT_PUBLIC_`. |
+
+> [!CAUTION]
+> **TUYỆT ĐỐI KHÔNG** đặt tiền tố `NEXT_PUBLIC_` cho `DATABASE_URL`, `DIRECT_DATABASE_URL` hoặc `AUTH_SECRET`. Việc này sẽ khiến Next.js bundle mật khẩu vào mã JavaScript gửi xuống trình duyệt!
+
+---
+
+## 🗄 5. Quản Lý Migration Cơ Sở Dữ Liệu (Migrations Lifecycle)
+
+Drizzle Kit được cấu hình để quản lý phiên bản schema an toàn:
+
+### 5.1. Tạo mới Migration
+Khi thay đổi file [`src/lib/db/schema/index.ts`](file:///src/lib/db/schema/index.ts):
 ```bash
-npm install
-```
-
-### 2. Cấu hình biến môi trường
-Tạo file `.env.local` từ mẫu `.env.example`:
-```env
-DATABASE_URL="postgresql://user:password@ep-sample-pooler.ap-southeast-1.aws.neon.tech/pocketflow?sslmode=require"
-DIRECT_DATABASE_URL="postgresql://user:password@ep-sample.ap-southeast-1.aws.neon.tech/pocketflow?sslmode=require"
-AUTH_SECRET="your-ultra-secure-random-secret-key-at-least-32-chars"
-```
-
-### 3. Tạo schema & Migration cơ sở dữ liệu
-```bash
-# Tạo migration SQL từ Drizzle schema
 npm run db:generate
+```
+Lệnh này sẽ sinh file SQL mới trong thư mục `drizzle/`.
 
-# Áp dụng migration vào Neon PostgreSQL
+### 5.2. Kiểm tra (Review) Migration
+Trước khi áp dụng, nhà phát triển **bắt buộc kiểm tra** nội dung file `.sql` vừa sinh ra trong thư mục `drizzle/` để tránh các thao tác nguy hiểm (như `DROP TABLE`, `DROP COLUMN` không chủ đích).
+
+### 5.3. Áp dụng Migration vào Cơ sở dữ liệu
+```bash
+# Áp dụng các file migration chưa chạy
 npm run db:migrate
 
-# Seed danh mục mặc định tiếng Việt
+# Khởi tạo dữ liệu mẫu (12 danh mục tiếng Việt chuẩn)
 npm run db:seed
 ```
 
-### 4. Chạy môi trường phát triển (Development)
-```bash
-npm run dev
-```
-Truy cập ứng dụng tại: `http://localhost:3000`
+### 5.4. Quy trình triển khai Production & Khôi phục khi lỗi
+- **Không chạy migration tự động độc lập trên từng instance Serverless**: Chỉ áp dụng migration từ một quy trình CI/CD tập trung hoặc chạy thủ công có kiểm soát trước khi deploy phiên bản code mới.
+- **Xử lý sự cố (Rollback / Recovery)**:
+  - Neon hỗ trợ tính năng **Point-in-Time Recovery (PITR)** và **Database Branching**.
+  - Trước khi chạy migration lớn trên production, hãy tạo một Neon branch tạm: `neon branches create --name backup-before-migration`.
+  - Nếu migration thất bại: có thể khôi phục trạng thái database về branch sao lưu trong vài giây.
 
-### 5. Chạy kiểm thử tự động
+---
+
+## ☁️ 6. Hướng Dẫn Triển Khai Lên Vercel (Vercel Deployment)
+
+### 6.1. Kết nối Repository với Vercel
+1. Đăng nhập [https://vercel.com](https://vercel.com).
+2. Nhấn **Add New... -> Project**.
+3. Chọn Git repository: `TanPhoAn/Expense_Management` (hoặc repo của bạn).
+
+### 6.2. Cấu hình Project Settings
+- **Framework Preset**: `Next.js`
+- **Root Directory**: `./` (để mặc định nếu repo ở root, hoặc trỏ đúng thư mục project nếu dùng monorepo)
+- **Node.js Version**: Chọn `20.x` (trong Settings -> General -> Node.js Version)
+- **Build Command**: `next build` (mặc định)
+- **Output Directory**: `.next` (mặc định)
+- **Install Command**: `npm install` (mặc định)
+
+### 6.3. Cài đặt Environment Variables trên Vercel
+Vào tab **Settings -> Environment Variables** và thêm các biến sau:
+1. `DATABASE_URL` -> Connection string Neon (Pooled)
+2. `DIRECT_DATABASE_URL` -> Connection string Neon (Direct)
+3. `AUTH_SECRET` -> Chuỗi bí mật 32 ký tự
+4. `NEXT_PUBLIC_APP_URL` -> URL domain của Vercel (VD: `https://pocketflow.vercel.app`)
+
+*Lưu ý: Bạn có thể cấu hình giá trị riêng cho Production, Preview và Development để các bản Preview branch sử dụng riêng database branch của Neon, tránh ghi đè dữ liệu Production.*
+
+### 6.4. Kích hoạt Deploy
+Nhấn **Deploy**. Vercel sẽ tự động tải dependencies, chạy kiểm tra TypeScript, build tối ưu hóa và phát hành ứng dụng ra CDN toàn cầu.
+
+---
+
+## 🧪 7. Kiểm Thử & Kiểm Tra Chất Lượng Mã Nguồn
+
 ```bash
-# Chạy Unit Tests với Vitest
+# 1. Chạy toàn bộ 112 Unit Tests (Bao gồm logic tài chính, chống làm tròn, phân quyền dữ liệu)
 npm test
 
-# Chạy End-to-End Tests với Playwright
+# 2. Kiểm tra nghiêm ngặt kiểu dữ liệu TypeScript
+npm run typecheck
+
+# 3. Kiểm tra định dạng và chuẩn mã nguồn ESLint
+npm run lint
+
+# 4. Kiểm thử End-to-End (Playwright)
 npm run test:e2e
+
+# 5. Chạy thử nghiệm Production Build tại local
+npm run build
 ```
 
 ---
 
-## 📁 Cấu Trúc Mã Nguồn
+## ✅ 8. Danh Sách Kiểm Tra Sau Triển Khai (Production Verification)
 
-```
-pocketflow/
-├── drizzle/                     # Migration SQL tự động
-├── public/                      # Static assets
-├── src/
-│   ├── app/                     # Next.js App Router
-│   │   ├── (auth)/              # Đăng nhập & Đăng ký
-│   │   ├── (dashboard)/         # Tổng quan, Giao dịch, Danh mục
-│   │   └── api/v1/              # Typed REST API endpoints
-│   ├── components/ui/           # shadcn/ui primitives
-│   ├── features/                # Domain features
-│   │   ├── transactions/        # QuickAddModal, Services
-│   │   ├── categories/          # Services & Suggestion Engine
-│   │   └── dashboard/           # Charts, Summary Services
-│   ├── lib/                     # Hạ tầng dùng chung
-│   │   ├── db/                  # Drizzle ORM client, schema, seed
-│   │   ├── auth/                # Session & Password hashing
-│   │   ├── validations/         # Zod schemas
-│   │   └── utils/               # Tiền tệ VND, Múi giờ VN
-│   ├── middleware.ts            # Edge Auth Protection Middleware
-│   └── types/                   # TypeScript interfaces
-├── tests/                       # Unit & E2E tests
-├── drizzle.config.ts            # Drizzle Kit config
-└── vitest.config.ts             # Vitest config
-```
+Sau khi Vercel thông báo deploy thành công, thực hiện quy trình kiểm tra thực tế:
+
+- [ ] **Kiểm tra Health Endpoint**: Truy cập `https://<domain>/api/health` -> Phải trả về JSON `{ status: "ok", db: "connected", latencyMs: ..., timezone: "Asia/Ho_Chi_Minh" }`.
+- [ ] **Đăng ký tài khoản mới**: Truy cập `/register`, nhập thông tin -> Tài khoản được tạo thành công và chuyển hướng vào Dashboard.
+- [ ] **Tải danh mục mặc định**: Kiểm tra giao diện ghi chép có sẵn 12 danh mục tiếng Việt (Ăn uống, Di chuyển, Lương, v.v.).
+- [ ] **Tạo giao dịch Thu & Chi**:
+  - Nhập chi tiêu: `Đi ăn trưa`, số tiền `55.000 đ` -> Lưu thành công.
+  - Nhập thu nhập: `Lương tháng`, số tiền `15.000.000 đ` -> Lưu thành công.
+- [ ] **Xác thực độ chính xác số liệu Dashboard**:
+  - Thẻ *Chi tiêu hôm nay* hiển thị đúng `55.000 đ`.
+  - Thẻ *Thu tháng này* hiển thị đúng `15.000.000 đ`.
+  - Thẻ *Chi tháng này* hiển thị đúng `55.000 đ`.
+  - Thẻ *Số dư còn lại* hiển thị đúng `14.945.000 đ`.
+- [ ] **Chỉnh sửa & Xóa giao dịch**: Sửa lại số tiền giao dịch và kiểm tra biểu đồ + số dư cập nhật tức thì.
+- [ ] **Tính cô lập dữ liệu (Multi-tenant Isolation)**: Đăng xuất và đăng ký tài khoản thứ 2 trên trình duyệt ẩn danh. Đảm bảo tài khoản thứ 2 **không nhìn thấy** bất kỳ giao dịch nào của tài khoản thứ nhất.
+- [ ] **Bảo mật Logs**: Xem log trên Vercel Runtime Logs, đảm bảo không có chuỗi kết nối database hay token nào bị in ra.
 
 ---
 
-## 📡 Chi Tiết API Endpoints (Phase 2 Server Contract)
+## 🛠 9. Xử Lý Sự Cố Thường Gặp (Troubleshooting)
 
-Tất cả các API yêu cầu xác thực phiên đăng nhập qua HTTP-Only cookie `pocketflow_session` (ngoại trừ các endpoint xác thực). Mọi giao dịch và danh mục đều tự động lọc theo `userId` từ phiên.
+| Hiện tượng | Nguyên nhân khả dĩ | Hướng khắc phục |
+| :--- | :--- | :--- |
+| **Lỗi `500 Internal Server Error` khi gọi API** | Chưa điền biến `DATABASE_URL` hoặc `AUTH_SECRET` trên Vercel | Kiểm tra tab Environment Variables trên Vercel, đảm bảo biến có sẵn trong môi trường Production và trigger redeploy. |
+| **Lỗi kết nối `connection timeout` tới Neon** | Vượt quá số lượng kết nối tối đa | Đảm bảo `DATABASE_URL` sử dụng connection string có tiền tố `-pooler` (cổng 6543 / PgBouncer). |
+| **Lỗi migration `prepared statement already exists`** | Dùng Pooled connection để chạy DDL migrations | Đặt biến `DIRECT_DATABASE_URL` trỏ vào endpoint trực tiếp (không có `-pooler`) khi chạy `npm run db:migrate`. |
+| **Cảnh báo `Dynamic server usage` lúc build** | Next.js kiểm tra static render trên các route có đọc cookies | Đây là cơ chế phân tích tĩnh bình thường của Next.js App Router với các route động (`ƒ Dynamic`). Không ảnh hưởng đến runtime. |
 
-### 1. Giao Dịch (Transactions)
+---
 
-- **`POST /api/v1/transactions`**: Tạo mới giao dịch.
-  ```bash
-  curl -X POST http://localhost:3000/api/v1/transactions \
-    -H "Content-Type: application/json" \
-    -b "pocketflow_session=<TOKEN>" \
-    -d '{
-      "description": "Đi ăn trưa",
-      "amount": "55000",
-      "type": "EXPENSE",
-      "categoryId": "b1494602-0e22-4841-8f43-b248a3fec023",
-      "transactionDate": "2026-10-27",
-      "note": "Ăn cùng đồng nghiệp"
-    }'
-  ```
+## ⚠️ 10. Giới Hạn Đã Biết (Known Limitations)
 
-- **`GET /api/v1/transactions`**: Danh sách giao dịch có phân trang và bộ lọc.
-  ```bash
-  curl "http://localhost:3000/api/v1/transactions?page=1&pageSize=20&type=EXPENSE&startDate=2026-10-01&endDate=2026-10-31" \
-    -b "pocketflow_session=<TOKEN>"
-  ```
-
-- **`GET /api/v1/transactions/[id]`**: Chi tiết 1 giao dịch theo ID.
-- **`PUT /api/v1/transactions/[id]`** hoặc **`PATCH /api/v1/transactions/[id]`**: Cập nhật từng phần hoặc toàn phần giao dịch.
-- **`DELETE /api/v1/transactions/[id]`**: Xóa giao dịch của người dùng.
-
-### 2. Danh Mục (Categories)
-
-- **`GET /api/v1/categories`**: Lấy danh mục hệ thống mặc định (`userId IS NULL`) và danh mục riêng của người dùng.
-- **`POST /api/v1/categories`**: Tạo danh mục tùy chỉnh per-user.
-- **`PATCH /api/v1/categories/[id]`** / **`PUT /api/v1/categories/[id]`**: Cập nhật danh mục riêng (ngăn chặn chỉnh sửa danh mục hệ thống).
-- **`DELETE /api/v1/categories/[id]`**: Xóa danh mục riêng (bảo vệ danh mục hệ thống và chặn xóa danh mục đang có giao dịch phát sinh).
-- **`GET /api/v1/categories/suggest?q=...`**: Gợi ý danh mục tiếng Việt thông minh qua từ khóa mô tả.
-
-### 3. Báo Cáo & Thống Kê (Dashboard)
-
-- **`GET /api/v1/dashboard/summary?month=YYYY-MM`**: Tổng hợp `todayExpense`, `monthlyIncome`, `monthlyExpense`, `remainingBalance`.
-- **`GET /api/v1/dashboard/expense-breakdown?month=YYYY-MM`**: Cơ cấu chi tiêu theo từng danh mục kèm tỷ lệ phần trăm (`%`).
-- **`GET /api/v1/dashboard/trends?month=YYYY-MM`**: Xu hướng chi tiêu theo từng ngày trong tháng (`dailyExpenseTrend`) hoặc theo số tháng gần nhất (`months=6`).
-
+- **Rate Limiting**: Phiên bản hiện tại chưa tích hợp Redis rate limiter. Đăng nhập liên tục chưa bị khóa IP.
+- **Tính năng mở rộng**: Chưa hỗ trợ liên kết tự động tài khoản ngân hàng (Open Banking API) và chưa có giao dịch định kỳ (Recurring transactions) theo đúng phạm vi cam kết của Phase 1–5.
