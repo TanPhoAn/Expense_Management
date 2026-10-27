@@ -7,6 +7,7 @@ import {
   date,
   timestamp,
   boolean,
+  integer,
   index,
   uniqueIndex,
   check,
@@ -36,6 +37,30 @@ export const users = pgTable('users', {
     .$onUpdate(() => new Date())
     .notNull(),
 });
+
+// -----------------------------------------------------------------------------
+// Password Reset Tokens / OTPs Table
+// -----------------------------------------------------------------------------
+export const passwordResetTokens = pgTable(
+  'password_reset_tokens',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    code: varchar('code', { length: 255 }).notNull(), // hashed OTP
+    expiresAt: timestamp('expires_at', { withTimezone: true, mode: 'date' }).notNull(),
+    attempts: integer('attempts').notNull().default(0),
+    usedAt: timestamp('used_at', { withTimezone: true, mode: 'date' }),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => ({
+    userIdIdx: index('password_reset_tokens_user_id_idx').on(table.userId),
+    expiresAtIdx: index('password_reset_tokens_expires_at_idx').on(table.expiresAt),
+  })
+);
 
 // -----------------------------------------------------------------------------
 // Categories Table
@@ -114,6 +139,14 @@ export const transactions = pgTable(
 export const usersRelations = relations(users, ({ many }) => ({
   categories: many(categories),
   transactions: many(transactions),
+  passwordResetTokens: many(passwordResetTokens),
+}));
+
+export const passwordResetTokensRelations = relations(passwordResetTokens, ({ one }) => ({
+  user: one(users, {
+    fields: [passwordResetTokens.userId],
+    references: [users.id],
+  }),
 }));
 
 export const categoriesRelations = relations(categories, ({ one, many }) => ({
@@ -141,3 +174,5 @@ export type InsertCategory = typeof categories.$inferInsert;
 export type SelectCategory = typeof categories.$inferSelect;
 export type InsertTransaction = typeof transactions.$inferInsert;
 export type SelectTransaction = typeof transactions.$inferSelect;
+export type InsertPasswordResetToken = typeof passwordResetTokens.$inferInsert;
+export type SelectPasswordResetToken = typeof passwordResetTokens.$inferSelect;

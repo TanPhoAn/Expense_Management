@@ -14,7 +14,7 @@ const SESSION_COOKIE_NAME = 'pocketflow_session';
  * from server-only modules that rely on next/headers (which is not available in edge).
  */
 
-const PUBLIC_PATHS = ['/login', '/register', '/api/'];
+const PUBLIC_PATHS = ['/login', '/register', '/forgot-password', '/reset-password', '/api/'];
 
 function isPublicPath(pathname: string): boolean {
   return PUBLIC_PATHS.some((p) => pathname.startsWith(p));

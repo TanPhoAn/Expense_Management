@@ -10,9 +10,11 @@ import {
   Tags,
   PlusCircle,
   LogOut,
+  KeyRound,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { QuickAddModal } from "@/features/transactions/components/QuickAddModal";
+import { ChangePasswordModal } from "@/features/auth/components/ChangePasswordModal";
 import { Category, User } from "@/types";
 import { formatVNDate, getVietnamTodayString } from "@/lib/utils/date";
 
@@ -23,6 +25,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [categories, setCategories] = useState<Category[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
 
   const fetchCategories = useCallback(async () => {
     try {
@@ -134,6 +137,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <Button
                   variant="ghost"
                   size="icon"
+                  onClick={() => setIsChangePasswordOpen(true)}
+                  title="Đổi mật khẩu"
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <KeyRound className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
                   onClick={handleLogout}
                   title="Đăng xuất"
                   className="text-muted-foreground hover:text-rose-600"
@@ -181,6 +193,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           // Dispatch custom event so active pages refresh seamlessly
           window.dispatchEvent(new Event("pocketflow:transaction-created"));
         }}
+      />
+
+      {/* Global Change Password Modal */}
+      <ChangePasswordModal
+        isOpen={isChangePasswordOpen}
+        onClose={() => setIsChangePasswordOpen(false)}
       />
     </div>
   );
