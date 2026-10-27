@@ -30,6 +30,7 @@ export interface Transaction {
   type: TransactionType;
   transactionDate: string; // YYYY-MM-DD in Asia/Ho_Chi_Minh
   note?: string | null;
+  receiptUrl?: string | null;
   createdAt: Date;
   updatedAt: Date;
   category?: Category;

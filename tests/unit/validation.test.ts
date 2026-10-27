@@ -109,6 +109,31 @@ describe('Validation Schemas', () => {
         createTransactionSchema.safeParse({ ...validExpense, note: null }).success
       ).toBe(true);
     });
+
+    it('should allow valid Cloudinary receiptUrl', () => {
+      expect(
+        createTransactionSchema.safeParse({
+          ...validExpense,
+          receiptUrl: 'https://res.cloudinary.com/demo/image/upload/sample.jpg',
+        }).success
+      ).toBe(true);
+    });
+
+    it('should allow receiptUrl to be null or omitted', () => {
+      expect(
+        createTransactionSchema.safeParse({ ...validExpense, receiptUrl: null }).success
+      ).toBe(true);
+      expect(
+        createTransactionSchema.safeParse(validExpense).success
+      ).toBe(true);
+    });
+
+    it('should reject receiptUrl exceeding 512 characters', () => {
+      const longUrl = 'https://res.cloudinary.com/' + 'a'.repeat(510);
+      expect(
+        createTransactionSchema.safeParse({ ...validExpense, receiptUrl: longUrl }).success
+      ).toBe(false);
+    });
   });
 
   // ─── Transaction Update ───────────────────────────────────────────────────

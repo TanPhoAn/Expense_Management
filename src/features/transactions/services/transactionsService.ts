@@ -53,6 +53,7 @@ export async function listUserTransactions(userId: string, filter: TransactionFi
       type: transactions.type,
       transactionDate: transactions.transactionDate,
       note: transactions.note,
+      receiptUrl: transactions.receiptUrl,
       createdAt: transactions.createdAt,
       updatedAt: transactions.updatedAt,
       category: {
@@ -92,6 +93,7 @@ export async function getTransactionById(userId: string, transactionId: string) 
       type: transactions.type,
       transactionDate: transactions.transactionDate,
       note: transactions.note,
+      receiptUrl: transactions.receiptUrl,
       createdAt: transactions.createdAt,
       updatedAt: transactions.updatedAt,
       category: {
@@ -142,6 +144,7 @@ export async function createTransaction(userId: string, input: CreateTransaction
       type: input.type,
       transactionDate: input.transactionDate,
       note: input.note ? input.note.trim() : null,
+      receiptUrl: input.receiptUrl ? input.receiptUrl.trim() : null,
     })
     .returning();
 
@@ -190,6 +193,7 @@ export async function updateTransaction(
       ...(input.categoryId ? { categoryId: input.categoryId } : {}),
       ...(input.transactionDate ? { transactionDate: input.transactionDate } : {}),
       ...(input.note !== undefined ? { note: input.note ? input.note.trim() : null } : {}),
+      ...(input.receiptUrl !== undefined ? { receiptUrl: input.receiptUrl ? input.receiptUrl.trim() : null } : {}),
       updatedAt: new Date(),
     })
     .where(and(eq(transactions.id, transactionId), eq(transactions.userId, userId)))

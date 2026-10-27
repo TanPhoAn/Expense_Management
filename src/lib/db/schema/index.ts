@@ -113,6 +113,7 @@ export const transactions = pgTable(
     type: transactionTypeEnum('type').notNull(),
     transactionDate: date('transaction_date').notNull(),
     note: text('note'),
+    receiptUrl: varchar('receipt_url', { length: 512 }),
     createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
       .defaultNow()
       .notNull(),

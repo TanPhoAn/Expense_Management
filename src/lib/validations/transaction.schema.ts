@@ -21,6 +21,7 @@ export const createTransactionSchema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngày giao dịch phải có định dạng YYYY-MM-DD'),
   note: z.string().max(1000, 'Ghi chú tối đa 1000 ký tự').optional().nullable(),
+  receiptUrl: z.string().max(512, 'Đường dẫn ảnh tối đa 512 ký tự').optional().nullable(),
 });
 
 export const updateTransactionSchema = createTransactionSchema.partial();

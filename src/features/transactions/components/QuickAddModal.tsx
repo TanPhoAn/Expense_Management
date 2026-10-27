@@ -26,6 +26,7 @@ import { formatNumberVN, sanitizeCurrencyInput, formatVND } from "@/lib/utils/cu
 import { Category } from "@/types";
 import { Sparkles, Loader2, Check } from "lucide-react";
 import { toast } from "sonner";
+import { ReceiptUploadField } from "@/components/ui/ReceiptUploadField";
 
 interface QuickAddModalProps {
   isOpen: boolean;
@@ -62,12 +63,14 @@ export function QuickAddModal({
       categoryId: "",
       transactionDate: getVietnamTodayString(),
       note: "",
+      receiptUrl: null,
     },
   });
 
   const selectedType = watch("type");
   const descriptionValue = watch("description");
   const rawAmount = watch("amount");
+  const receiptUrlValue = watch("receiptUrl");
 
   // Reset form when modal opens with defaultType
   useEffect(() => {
@@ -153,6 +156,7 @@ export function QuickAddModal({
         categoryId: filteredCategories[0]?.id || "",
         transactionDate: getVietnamTodayString(),
         note: "",
+        receiptUrl: null,
       });
       setSuggestedCategory(null);
       toast.success(
@@ -313,6 +317,13 @@ export function QuickAddModal({
               {...register("note")}
             />
           </div>
+
+          {/* Receipt Upload (Cloudinary) */}
+          <ReceiptUploadField
+            value={receiptUrlValue}
+            onChange={(url) => setValue("receiptUrl", url, { shouldValidate: true })}
+            disabled={isSubmitting}
+          />
 
           <DialogFooter className="pt-2">
             <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>

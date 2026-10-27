@@ -9,6 +9,7 @@ import {
   ChevronRight,
   Receipt,
   Loader2,
+  ZoomIn,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,9 @@ import {
 } from "@/components/ui/dialog";
 import { formatVND, formatNumberVN, sanitizeCurrencyInput } from "@/lib/utils/currency";
 import { formatVNDate, getVietnamTodayString, getMonthDateRange, getVietnamCurrentMonthString } from "@/lib/utils/date";
+import { getReceiptThumbnailUrl } from "@/lib/utils/image";
+import { ReceiptLightboxModal, LightboxData } from "@/components/ui/ReceiptLightboxModal";
+import { ReceiptUploadField } from "@/components/ui/ReceiptUploadField";
 import { Transaction, Category } from "@/types";
 import { toast } from "sonner";
 
@@ -55,6 +59,8 @@ export default function TransactionsPage() {
   const [editCategoryId, setEditCategoryId] = useState("");
   const [editDate, setEditDate] = useState("");
   const [editNote, setEditNote] = useState("");
+  const [editReceiptUrl, setEditReceiptUrl] = useState<string | null>(null);
+  const [lightboxData, setLightboxData] = useState<LightboxData | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
 
   // Delete State
@@ -123,6 +129,7 @@ export default function TransactionsPage() {
     setEditCategoryId(tx.categoryId);
     setEditDate(tx.transactionDate);
     setEditNote(tx.note || "");
+    setEditReceiptUrl(tx.receiptUrl || null);
   };
 
   const handleSaveEdit = async () => {
@@ -139,6 +146,7 @@ export default function TransactionsPage() {
           categoryId: editCategoryId,
           transactionDate: editDate,
           note: editNote,
+          receiptUrl: editReceiptUrl,
         }),
       });
 
@@ -366,8 +374,46 @@ export default function TransactionsPage() {
                         {formatVNDate(tx.transactionDate, "short")}
                       </td>
                       <td className="px-4 py-3">
-                        <div className="font-semibold text-foreground">{tx.description}</div>
-                        {tx.note && <div className="text-xs text-muted-foreground line-clamp-1">{tx.note}</div>}
+                        <div className="flex items-center gap-3">
+                          {tx.receiptUrl ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setLightboxData({
+                                  imageUrl: tx.receiptUrl!,
+                                  description: tx.description,
+                                  amount: tx.amount,
+                                  type: tx.type,
+                                  categoryName: tx.category?.name,
+                                  transactionDate: tx.transactionDate,
+                                })
+                              }
+                              className="group relative w-9 h-9 rounded-full overflow-hidden shadow-sm shrink-0 border border-slate-200 dark:border-slate-800 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary"
+                              title="Nhấn để xem hóa đơn gốc"
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={getReceiptThumbnailUrl(tx.receiptUrl) || tx.receiptUrl}
+                                alt={tx.description}
+                                className="w-full h-full object-cover group-hover:scale-110 transition-transform"
+                              />
+                              <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <ZoomIn className="w-3 h-3 text-white" />
+                              </div>
+                            </button>
+                          ) : (
+                            <div
+                              className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs text-white shadow-sm shrink-0"
+                              style={{ backgroundColor: tx.category?.color || "#64748b" }}
+                            >
+                              {tx.category?.name.charAt(0) || "T"}
+                            </div>
+                          )}
+                          <div>
+                            <div className="font-semibold text-foreground">{tx.description}</div>
+                            {tx.note && <div className="text-xs text-muted-foreground line-clamp-1">{tx.note}</div>}
+                          </div>
+                        </div>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-800">
@@ -524,6 +570,26 @@ export default function TransactionsPage() {
                 <label className="text-xs font-semibold">Ghi chú</label>
                 <Input value={editNote} onChange={(e) => setEditNote(e.target.value)} />
               </div>
+
+              <div>
+                <ReceiptUploadField
+                  value={editReceiptUrl}
+                  onChange={setEditReceiptUrl}
+                  onPreview={(url) => {
+                    if (editingTx) {
+                      setLightboxData({
+                        imageUrl: url,
+                        description: editDesc,
+                        amount: editAmount,
+                        type: editType,
+                        categoryName: categories.find((c) => c.id === editCategoryId)?.name,
+                        transactionDate: editDate,
+                      });
+                    }
+                  }}
+                  disabled={isUpdating}
+                />
+              </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setEditingTx(null)} disabled={isUpdating}>
@@ -558,6 +624,12 @@ export default function TransactionsPage() {
           </DialogContent>
         </Dialog>
       )}
+      {/* Receipt Lightbox Full-View Modal */}
+      <ReceiptLightboxModal
+        data={lightboxData}
+        isOpen={!!lightboxData}
+        onClose={() => setLightboxData(null)}
+      />
     </div>
   );
 }

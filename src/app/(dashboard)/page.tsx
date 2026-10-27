@@ -10,6 +10,7 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   Receipt,
+  ZoomIn,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,8 @@ import { Badge } from "@/components/ui/badge";
 import { DashboardCharts } from "@/features/dashboard/components/DashboardCharts";
 import { formatVND } from "@/lib/utils/currency";
 import { getVietnamCurrentMonthString, formatVNDate } from "@/lib/utils/date";
+import { getReceiptThumbnailUrl } from "@/lib/utils/image";
+import { ReceiptLightboxModal, LightboxData } from "@/components/ui/ReceiptLightboxModal";
 import {
   DashboardSummary,
   CategoryBreakdownItem,
@@ -38,6 +41,7 @@ export default function DashboardPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [quickAddModalOpen, setQuickAddModalOpen] = useState(false);
   const [quickAddType, setQuickAddType] = useState<"INCOME" | "EXPENSE">("EXPENSE");
+  const [lightboxData, setLightboxData] = useState<LightboxData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const loadDashboardData = async (month: string) => {
@@ -266,12 +270,40 @@ export default function DashboardPage() {
               {recentTransactions.map((tx) => (
                 <div key={tx.id} className="flex items-center justify-between py-3">
                   <div className="flex items-center gap-3">
-                    <div
-                      className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white shadow-sm shrink-0"
-                      style={{ backgroundColor: tx.category?.color || "#64748b" }}
-                    >
-                      {tx.category?.name.charAt(0) || "T"}
-                    </div>
+                    {tx.receiptUrl ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setLightboxData({
+                            imageUrl: tx.receiptUrl!,
+                            description: tx.description,
+                            amount: tx.amount,
+                            type: tx.type,
+                            categoryName: tx.category?.name,
+                            transactionDate: tx.transactionDate,
+                          })
+                        }
+                        className="group relative w-10 h-10 rounded-full overflow-hidden shadow-sm shrink-0 border border-slate-200 dark:border-slate-800 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary"
+                        title="Nhấn để xem hóa đơn gốc"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={getReceiptThumbnailUrl(tx.receiptUrl) || tx.receiptUrl}
+                          alt={tx.description}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform"
+                        />
+                        <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <ZoomIn className="w-3.5 h-3.5 text-white" />
+                        </div>
+                      </button>
+                    ) : (
+                      <div
+                        className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white shadow-sm shrink-0"
+                        style={{ backgroundColor: tx.category?.color || "#64748b" }}
+                      >
+                        {tx.category?.name.charAt(0) || "T"}
+                      </div>
+                    )}
                     <div>
                       <p className="font-semibold text-sm leading-snug">{tx.description}</p>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
@@ -313,6 +345,12 @@ export default function DashboardPage() {
         onTransactionCreated={() => {
           loadDashboardData(selectedMonth);
         }}
+      />
+      {/* Receipt Full-Screen Lightbox Modal */}
+      <ReceiptLightboxModal
+        data={lightboxData}
+        isOpen={!!lightboxData}
+        onClose={() => setLightboxData(null)}
       />
     </div>
   );

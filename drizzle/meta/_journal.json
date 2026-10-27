@@ -15,6 +15,13 @@
       "when": 1793124015636,
       "tag": "0001_busy_longshot",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793131037498,
+      "tag": "0002_abnormal_wallflower",
+      "breakpoints": true
     }
   ]
 }
