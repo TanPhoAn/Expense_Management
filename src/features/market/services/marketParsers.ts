@@ -335,9 +335,9 @@ export function getFallbackMarketPrices(): MarketPricesData {
   return {
     gold: {
       name: "Vàng nhẫn SJC 99,99% (1 chỉ)",
-      buyPrice: 87_500_000 / 10, // 8,750,000 đ/chỉ
-      sellPrice: 88_800_000 / 10, // 8,880,000 đ/chỉ
-      spread: 1_300_000 / 10, // 130,000 đ/chỉ
+      buyPrice: 135_500_000 / 10, // 13,550,000 đ/chỉ (theo niêm yết SJC Online 135.500.000 đ/lượng)
+      sellPrice: 139_500_000 / 10, // 13,950,000 đ/chỉ (theo niêm yết SJC Online 139.500.000 đ/lượng)
+      spread: (139_500_000 - 135_500_000) / 10, // 400,000 đ/chỉ
       updatedAt: "Hôm nay (Tham khảo SJC)",
       source: "SJC Online (sjc.com.vn)",
     },

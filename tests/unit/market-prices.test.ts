@@ -134,7 +134,24 @@ describe("Market Prices Parsers & Normalization", () => {
   });
 
   describe("parseSjcGoldHtml", () => {
-    it("extracts SJC 99.99% gold ring from SJC table HTML", () => {
+    it("extracts SJC 99.99% gold ring from SJC table HTML matching official website row", () => {
+      const sampleHtml = `
+      <table>
+        <tr>
+          <td>VÀNG NHẪN SJC 99,99% 1 CHỈ, 2 CHỈ, 5 CHỈ</td>
+          <td>135,500,000</td>
+          <td>139,500,000</td>
+        </tr>
+      </table>`;
+
+      const result = parseSjcGoldHtml(sampleHtml);
+      expect(result).not.toBeNull();
+      expect(result?.buyPrice).toBe(13_550_000);
+      expect(result?.sellPrice).toBe(13_950_000);
+      expect(result?.spread).toBe(400_000);
+    });
+
+    it("extracts SJC 99.99% gold ring from SJC table HTML with dot formatting", () => {
       const sampleHtml = `
       <table class="table-price">
         <tr>
