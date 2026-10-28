@@ -589,6 +589,19 @@ export default function TransactionsPage() {
                   }}
                   disabled={isUpdating}
                   type={editType}
+                  onQuickFill={(data) => {
+                    if (data.amount !== undefined && data.amount > 0) {
+                      setEditAmount(String(data.amount));
+                    }
+                    if (data.description) {
+                      setEditDesc(data.description);
+                    }
+                    if (data.date) {
+                      setEditDate(data.date);
+                    }
+                  }}
+                  initialAmount={editAmount ? parseInt(editAmount, 10) : undefined}
+                  initialDescription={editDesc}
                 />
               </div>
             </div>

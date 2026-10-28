@@ -324,6 +324,19 @@ export function QuickAddModal({
             onChange={(url) => setValue("receiptUrl", url, { shouldValidate: true })}
             disabled={isSubmitting}
             type={selectedType}
+            onQuickFill={(data) => {
+              if (data.amount !== undefined && data.amount > 0) {
+                setValue("amount", String(data.amount), { shouldValidate: true });
+              }
+              if (data.description) {
+                setValue("description", data.description, { shouldValidate: true });
+              }
+              if (data.date) {
+                setValue("transactionDate", data.date, { shouldValidate: true });
+              }
+            }}
+            initialAmount={rawAmount ? parseInt(rawAmount, 10) : undefined}
+            initialDescription={descriptionValue}
           />
 
           <DialogFooter className="pt-2">

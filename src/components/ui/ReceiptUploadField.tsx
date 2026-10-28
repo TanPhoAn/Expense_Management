@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { compressImageClient } from "@/lib/utils/image";
 import { Camera, Image as ImageIcon, Trash2, Loader2, Eye } from "lucide-react";
-import { SquareCameraModal } from "@/components/ui/SquareCameraModal";
+import { SquareCameraModal, CameraCaptureConfirmData } from "@/components/ui/SquareCameraModal";
 import { toast } from "sonner";
 
 interface ReceiptUploadFieldProps {
@@ -14,6 +14,9 @@ interface ReceiptUploadFieldProps {
   onPreview?: (url: string) => void;
   disabled?: boolean;
   type?: "INCOME" | "EXPENSE";
+  onQuickFill?: (data: { amount?: number; description?: string; date?: string }) => void;
+  initialAmount?: number;
+  initialDescription?: string;
 }
 
 export function ReceiptUploadField({
@@ -22,6 +25,9 @@ export function ReceiptUploadField({
   onPreview,
   disabled = false,
   type = "EXPENSE",
+  onQuickFill,
+  initialAmount,
+  initialDescription,
 }: ReceiptUploadFieldProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [isMobileDevice, setIsMobileDevice] = useState(false);
@@ -107,6 +113,20 @@ export function ReceiptUploadField({
     } else {
       cameraInputRef.current?.click();
     }
+  };
+
+  const handleCameraConfirm = async (data: CameraCaptureConfirmData) => {
+    // 1. Pre-fill transaction fields in parent form
+    if (onQuickFill) {
+      onQuickFill({
+        amount: data.amount,
+        description: data.description,
+        date: data.date,
+      });
+    }
+
+    // 2. Upload receipt to Cloudinary
+    await uploadFile(data.file);
   };
 
   const handleRemove = () => {
@@ -236,12 +256,14 @@ export function ReceiptUploadField({
         </>
       )}
 
-      {/* Custom In-App Square Camera Viewfinder Modal with Humorous Quotes */}
+      {/* Custom In-App Square Camera Viewfinder Modal with Post-Capture Review */}
       <SquareCameraModal
         isOpen={isCameraModalOpen}
         onClose={() => setIsCameraModalOpen(false)}
-        onCapture={uploadFile}
+        onConfirm={handleCameraConfirm}
         type={type}
+        initialAmount={initialAmount}
+        initialDescription={initialDescription}
       />
     </div>
   );
