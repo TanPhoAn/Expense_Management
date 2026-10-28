@@ -190,6 +190,43 @@ export function parseSjcGoldHtml(html: string): GoldPriceData | null {
 }
 
 /**
+ * Parse SJC Gold from live real-time JSON feed (giavang.now / SJC Mirror).
+ */
+export function parseSjcGoldJson(payload: unknown): GoldPriceData | null {
+  if (!payload || typeof payload !== "object") return null;
+
+  try {
+    const obj = payload as Record<string, unknown>;
+    const prices = (obj.prices || obj.data || obj) as Record<string, Record<string, unknown>>;
+
+    // "SJ9999" is the official code for SJC Ring 99.99% (Vàng nhẫn SJC 99,99)
+    const ring = prices.SJ9999 || prices["SJ9999"] || prices.SJL1L10;
+    if (!ring) return null;
+
+    const rawBuy = Number(ring.buy || ring.buy_price || 0);
+    const rawSell = Number(ring.sell || ring.sell_price || 0);
+
+    const buyPrice = normalizeGoldPricePerChi(rawBuy);
+    const sellPrice = normalizeGoldPricePerChi(rawSell);
+
+    if (buyPrice > 0 && sellPrice > 0) {
+      const timeStr = obj.time && obj.date ? `${obj.time} ngày ${obj.date}` : new Date().toLocaleDateString("vi-VN");
+      return {
+        name: "Vàng nhẫn SJC 99,99% (1 chỉ)",
+        buyPrice,
+        sellPrice,
+        spread: Math.max(0, sellPrice - buyPrice),
+        updatedAt: timeStr,
+        source: "SJC Online (sjc.com.vn)",
+      };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Parse VietFuel API Response.
  * Targets "Xăng E10 RON 95-III" or "Xăng RON 95-III" or "RON 95".
  */

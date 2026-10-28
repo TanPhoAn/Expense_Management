@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   normalizeGoldPricePerChi,
   cleanNumericValue,
+  parseSjcGoldJson,
   parseSjcGoldXml,
   parseSjcGoldHtml,
   parseVietFuelData,
@@ -55,6 +56,34 @@ describe("Market Prices Parsers & Normalization", () => {
     it("handles empty or invalid strings", () => {
       expect(cleanNumericValue("")).toBe(0);
       expect(cleanNumericValue("N/A")).toBe(0);
+    });
+  });
+
+  describe("parseSjcGoldJson", () => {
+    it("extracts SJC 99.99% gold ring (SJ9999) from live JSON feed", () => {
+      const payload = {
+        success: true,
+        timestamp: 1793223000,
+        time: "04:30",
+        date: "2026-10-29",
+        prices: {
+          DOJINHTV: { name: "DOJI Jewelry", buy: 137600000, sell: 141600000 },
+          SJ9999: { name: "SJC Ring", buy: 135500000, sell: 139500000 },
+        },
+      };
+
+      const result = parseSjcGoldJson(payload);
+      expect(result).not.toBeNull();
+      expect(result?.name).toBe("Vàng nhẫn SJC 99,99% (1 chỉ)");
+      expect(result?.buyPrice).toBe(13_550_000);
+      expect(result?.sellPrice).toBe(13_950_000);
+      expect(result?.spread).toBe(400_000);
+      expect(result?.updatedAt).toContain("04:30");
+    });
+
+    it("returns null for empty or invalid json payload", () => {
+      expect(parseSjcGoldJson(null)).toBeNull();
+      expect(parseSjcGoldJson({})).toBeNull();
     });
   });
 

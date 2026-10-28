@@ -1,5 +1,6 @@
 import { MarketPricesData } from "@/types";
 import {
+  parseSjcGoldJson,
   parseSjcGoldXml,
   parseSjcGoldHtml,
   parseVietFuelData,
@@ -12,13 +13,35 @@ let lastFetchTime = 0;
 const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
 
 /**
- * Fetch SJC Gold Price from official SJC endpoints.
+ * Fetch SJC Gold Price from official SJC endpoints and live real-time mirrors.
  */
 async function fetchSjcGoldPrice() {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 6000);
 
-  // 1. Try SJC XML feed
+  // 1. Try real-time live JSON feed (giavang.now / SJC Ring SJ9999)
+  try {
+    const res = await fetch("https://giavang.now/api/prices", {
+      headers: {
+        Accept: "application/json",
+      },
+      signal: controller.signal,
+      next: { revalidate: 900 },
+    });
+
+    if (res.ok) {
+      const json = await res.json();
+      const parsed = parseSjcGoldJson(json);
+      if (parsed && parsed.buyPrice > 0) {
+        clearTimeout(timeoutId);
+        return parsed;
+      }
+    }
+  } catch {
+    // Continue to official SJC endpoints
+  }
+
+  // 2. Try SJC XML feed
   try {
     const res = await fetch("https://sjc.com.vn/xml/tygiavang.xml", {
       headers: {
@@ -42,7 +65,7 @@ async function fetchSjcGoldPrice() {
     // Continue to next source
   }
 
-  // 2. Try SJC HTML page
+  // 3. Try SJC HTML page
   try {
     const res = await fetch("https://sjc.com.vn/gia-vang-online", {
       headers: {
