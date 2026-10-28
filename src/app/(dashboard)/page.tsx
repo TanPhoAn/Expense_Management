@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DashboardCharts } from "@/features/dashboard/components/DashboardCharts";
 import { DashboardCalendar } from "@/features/dashboard/components/DashboardCalendar";
+import { MarketPricesWidget } from "@/features/dashboard/components/MarketPricesWidget";
 import { formatVND } from "@/lib/utils/currency";
 import { getVietnamCurrentMonthString, getMonthDateRange, formatVNDate } from "@/lib/utils/date";
 import { getReceiptThumbnailUrl } from "@/lib/utils/image";
@@ -248,6 +249,9 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Real-time Market Prices Widget (SJC 99.99% Gold Ring & VietFuel E10 Gasoline) */}
+      <MarketPricesWidget />
 
       {/* Interactive Financial Calendar Widget */}
       <DashboardCalendar

@@ -66,3 +66,30 @@ export interface DailyExpenseTrendItem {
   date: string; // YYYY-MM-DD
   amount: string; // VND string
 }
+
+export interface GoldPriceData {
+  name: string;
+  buyPrice: number;
+  sellPrice: number;
+  spread: number;
+  updatedAt: string;
+  source: string;
+}
+
+export interface FuelPriceData {
+  fuelName: string;
+  priceZone1: number;
+  priceZone2?: number;
+  effectiveDate: string;
+  trend: 'UP' | 'DOWN' | 'UNCHANGED';
+  changeAmount?: number;
+  source: string;
+}
+
+export interface MarketPricesData {
+  gold: GoldPriceData;
+  fuel: FuelPriceData;
+  cachedAt: string;
+  isStale: boolean;
+}
+
