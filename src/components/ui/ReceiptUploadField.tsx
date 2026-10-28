@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { compressImageClient } from "@/lib/utils/image";
@@ -21,13 +21,32 @@ export function ReceiptUploadField({
   disabled = false,
 }: ReceiptUploadFieldProps) {
   const [isUploading, setIsUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isMobileDevice, setIsMobileDevice] = useState(false);
+
+  // Separate refs for regular file picker vs direct mobile camera capture
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+
+  // Detect mobile platform (user-agent + touch capability)
+  useEffect(() => {
+    const detectMobile = () => {
+      if (typeof window === "undefined") return;
+      const ua = window.navigator.userAgent;
+      const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+      const hasTouch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
+      setIsMobileDevice(isMobileUA || (hasTouch && window.innerWidth < 768));
+    };
+
+    detectMobile();
+    window.addEventListener("resize", detectMobile);
+    return () => window.removeEventListener("resize", detectMobile);
+  }, []);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Reset input so re-selecting same file triggers change
+    // Reset input value so selecting the same file again triggers onChange
     e.target.value = "";
 
     if (!file.type.startsWith("image/")) {
@@ -80,8 +99,9 @@ export function ReceiptUploadField({
         <span className="text-[10px] text-muted-foreground">Tự động nén JPG</span>
       </Label>
 
+      {/* Hidden input for regular file / gallery picking */}
       <input
-        ref={fileInputRef}
+        ref={galleryInputRef}
         type="file"
         accept="image/jpeg,image/png,image/webp"
         onChange={handleFileChange}
@@ -89,7 +109,19 @@ export function ReceiptUploadField({
         disabled={disabled || isUploading}
       />
 
+      {/* Hidden input for direct mobile camera capture (rear environment camera) */}
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={handleFileChange}
+        className="hidden"
+        disabled={disabled || isUploading}
+      />
+
       {value ? (
+        /* Attached Receipt Preview Box */
         <div className="flex items-center justify-between p-2 rounded-lg border bg-muted/40 gap-3">
           <div className="flex items-center gap-2.5 overflow-hidden">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -132,25 +164,54 @@ export function ReceiptUploadField({
             </Button>
           </div>
         </div>
-      ) : (
-        <div
-          onClick={() => !disabled && !isUploading && fileInputRef.current?.click()}
-          className={`flex items-center justify-center gap-2 p-3 rounded-lg border-2 border-dashed border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/30 transition-all cursor-pointer text-xs text-muted-foreground ${
-            isUploading ? "opacity-60 cursor-not-allowed" : ""
-          }`}
-        >
-          {isUploading ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin text-primary" />
-              <span>Đang nén & tải ảnh lên Cloudinary...</span>
-            </>
-          ) : (
-            <>
-              <Camera className="w-4 h-4 text-primary" />
-              <span>Nhấn để chọn ảnh chụp hóa đơn / biên lai</span>
-            </>
-          )}
+      ) : isUploading ? (
+        /* Uploading state with spinner */
+        <div className="flex items-center justify-center gap-2 p-3 rounded-lg border-2 border-dashed border-primary/40 bg-primary/5 text-xs text-primary font-medium">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          <span>Đang nén & tải ảnh lên Cloudinary...</span>
         </div>
+      ) : (
+        <>
+          {/* MOBILE VIEW (shown on mobile devices or screens < sm): 2 distinct touch-friendly action buttons */}
+          <div className={isMobileDevice ? "grid grid-cols-2 gap-2" : "grid grid-cols-2 gap-2 sm:hidden"}>
+            {/* Button 1: Chụp ảnh trực tiếp với camera sau điện thoại */}
+            <Button
+              type="button"
+              variant="outline"
+              disabled={disabled || isUploading}
+              onClick={() => cameraInputRef.current?.click()}
+              className="h-11 flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-primary/40 bg-primary/5 text-primary hover:bg-primary/10 font-semibold text-xs transition-all active:scale-95"
+            >
+              <Camera className="w-4 h-4 text-primary shrink-0" />
+              <span>Chụp ảnh</span>
+            </Button>
+
+            {/* Button 2: Chọn từ bộ sưu tập ảnh máy */}
+            <Button
+              type="button"
+              variant="outline"
+              disabled={disabled || isUploading}
+              onClick={() => galleryInputRef.current?.click()}
+              className="h-11 flex items-center justify-center gap-2 rounded-lg border border-border bg-background hover:bg-muted/50 text-foreground text-xs font-medium transition-all active:scale-95"
+            >
+              <ImageIcon className="w-4 h-4 text-muted-foreground shrink-0" />
+              <span>Thư viện ảnh</span>
+            </Button>
+          </div>
+
+          {/* DESKTOP VIEW: Standard file picker upload dropzone (No camera option) */}
+          <div
+            onClick={() => !disabled && !isUploading && galleryInputRef.current?.click()}
+            className={
+              isMobileDevice
+                ? "hidden"
+                : "hidden sm:flex items-center justify-center gap-2 p-3 rounded-lg border-2 border-dashed border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/30 transition-all cursor-pointer text-xs text-muted-foreground"
+            }
+          >
+            <ImageIcon className="w-4 h-4 text-primary" />
+            <span>Nhấn để chọn ảnh chứng từ / hóa đơn từ máy</span>
+          </div>
+        </>
       )}
     </div>
   );
