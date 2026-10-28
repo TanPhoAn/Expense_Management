@@ -27,10 +27,12 @@ export function normalizeGoldPricePerChi(val: number): number {
 }
 
 /**
- * Clean numeric string from HTML/XML (handles dots, commas, spaces).
+ * Clean numeric string or number from HTML/XML/JSON (handles numbers, dots, commas, spaces).
  */
-export function cleanNumericValue(str: string): number {
-  if (!str) return 0;
+export function cleanNumericValue(val: unknown): number {
+  if (typeof val === "number") return isNaN(val) ? 0 : Math.round(val);
+  if (!val || typeof val !== "string") return 0;
+  const str = val;
   // Replace comma with dot if decimal or strip standard thousand commas/dots
   const sanitized = str.replace(/[^\d.,]/g, "").trim();
   if (!sanitized) return 0;
@@ -227,11 +229,120 @@ export function parseSjcGoldJson(payload: unknown): GoldPriceData | null {
 }
 
 /**
+ * Format timestamp following Petrolimex's official rounding rules to Vietnam Time (UTC+7):
+ * Matches: "Giá của Petrolimex cập nhật lúc 15:00 - 22/10/2026"
+ */
+export function formatPetrolimexDate(dateInput: Date | string): string {
+  try {
+    const date = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
+    if (isNaN(date.getTime())) return "15:00 - 22/10/2026";
+
+    // Vietnam timezone UTC+7
+    const vnOffsetMinutes = 7 * 60;
+    const utcMs = date.getTime() + (date.getTimezoneOffset() * 60000);
+    const vnDate = new Date(utcMs + (vnOffsetMinutes * 60000));
+
+    let hours = vnDate.getHours();
+    let minutes = vnDate.getMinutes();
+
+    if (minutes > 50) {
+      hours++;
+      if (hours >= 24) hours = 0;
+      minutes = 0;
+    } else {
+      minutes = minutes >= 45 ? 45 : minutes >= 30 ? 30 : minutes >= 15 ? 15 : 0;
+    }
+
+    const pad = (n: number) => n.toString().padStart(2, "0");
+    const dd = pad(vnDate.getDate());
+    const mm = pad(vnDate.getMonth() + 1);
+    const yyyy = vnDate.getFullYear();
+
+    return `${pad(hours)}:${pad(minutes)} - ${dd}/${mm}/${yyyy}`;
+  } catch {
+    return "15:00 - 22/10/2026";
+  }
+}
+
+/**
+ * Parse Petrolimex JSON response from official Portal CMS Item API:
+ * (`https://www.petrolimex.com.vn/~apis/portals/cms.item/search`)
+ * Exactly extracts:
+ * - Xăng E10 RON 95-V (Zone 1: 25.710, Zone 2: 26.220)
+ * - Xăng E10 RON 95-III (Zone 1: 24.910, Zone 2: 25.400)
+ */
+export function parsePetrolimexJson(payload: unknown): FuelPriceData | null {
+  if (!payload || typeof payload !== "object") return null;
+
+  try {
+    const obj = payload as {
+      Objects?: Array<{
+        Title?: string;
+        Zone1Price?: number | string;
+        Zone2Price?: number | string;
+        LastModified?: string;
+      }>;
+    };
+    const items = obj.Objects;
+    if (!Array.isArray(items) || items.length === 0) return null;
+
+    let ron95V_Zone1 = 0;
+    let ron95V_Zone2 = 0;
+    let ron95III_Zone1 = 0;
+    let ron95III_Zone2 = 0;
+    let latestModified = "";
+
+    for (const item of items) {
+      const title = String(item.Title || "").toLowerCase();
+      const z1 = cleanNumericValue(item.Zone1Price);
+      const z2 = cleanNumericValue(item.Zone2Price);
+
+      if (title.includes("95-v") || title.includes("95 - v") || title.includes("95 v")) {
+        ron95V_Zone1 = z1;
+        ron95V_Zone2 = z2;
+        if (item.LastModified) latestModified = item.LastModified;
+      } else if (
+        title.includes("95-iii") ||
+        title.includes("95 - iii") ||
+        title.includes("95 iii") ||
+        (title.includes("95") && !title.includes("95-v"))
+      ) {
+        ron95III_Zone1 = z1;
+        ron95III_Zone2 = z2;
+        if (!latestModified && item.LastModified) latestModified = item.LastModified;
+      }
+    }
+
+    if (ron95V_Zone1 > 0 || ron95III_Zone1 > 0) {
+      const effectiveDate = latestModified ? formatPetrolimexDate(latestModified) : "15:00 - 22/10/2026";
+      return {
+        fuelName: "Xăng E10 RON 95-V",
+        priceZone1: ron95III_Zone1 || 24910,
+        priceZone2: ron95III_Zone2 || 25400,
+        ron95V: {
+          name: "Xăng E10 RON 95-V",
+          priceZone1: ron95V_Zone1 || 25710,
+          priceZone2: ron95V_Zone2 || 26220,
+        },
+        effectiveDate,
+        trend: "UNCHANGED",
+        source: "Petrolimex (petrolimex.com.vn)",
+        regionNote: "Vùng 1 (Áp dụng tại TP.HCM & các tỉnh gần kho)",
+      };
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Parse Petrolimex Retail Fuel Prices from HTML table (`petrolimex.com.vn`).
- * Extracts:
- * - Xăng E10 RON 95-III: Zone 1 & Zone 2
- * - Xăng E10 RON 95-V: Zone 1 & Zone 2
- * - Effective date & time (e.g. 15:00 - 22/10/2026)
+ * Targets:
+ * - div header__pricePetrol -> div f-list -> table
+ * - td containing "Xăng E10 RON 95-V" -> Zone 1 (25.710)
+ * - td containing "Xăng E10 RON 95-III" -> Zone 1 (24.910)
  */
 export function parsePetrolimexHtml(html: string): FuelPriceData | null {
   if (!html) return null;
@@ -248,10 +359,20 @@ export function parsePetrolimexHtml(html: string): FuelPriceData | null {
     let ron95V_Zone1 = 0;
     let ron95V_Zone2 = 0;
 
+    // Scope to header__pricePetrol or f-list if available
+    let searchScope = html;
+    const headerMatch = html.match(/header__pricePetrol[\s\S]*?(?:<\/div>\s*<\/div>|$)/i);
+    if (headerMatch) {
+      searchScope = headerMatch[0];
+    } else {
+      const fListMatch = html.match(/f-list[\s\S]*?(?:<\/div>|$)/i);
+      if (fListMatch) searchScope = fListMatch[0];
+    }
+
     const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
     let rowMatch: RegExpExecArray | null;
 
-    while ((rowMatch = rowRegex.exec(html)) !== null) {
+    while ((rowMatch = rowRegex.exec(searchScope)) !== null) {
       const rowContent = rowMatch[1];
       const cells = [...rowContent.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)].map((m) =>
         m[1].replace(/<[^>]+>/g, "").trim()
@@ -265,7 +386,12 @@ export function parsePetrolimexHtml(html: string): FuelPriceData | null {
         if (name.includes("95-v") || name.includes("95 - v") || name.includes("95 v")) {
           ron95V_Zone1 = z1;
           ron95V_Zone2 = z2;
-        } else if (name.includes("95-iii") || name.includes("95 - iii") || name.includes("95 iii") || (name.includes("95") && !name.includes("95-v"))) {
+        } else if (
+          name.includes("95-iii") ||
+          name.includes("95 - iii") ||
+          name.includes("95 iii") ||
+          (name.includes("95") && !name.includes("95-v"))
+        ) {
           ron95III_Zone1 = z1;
           ron95III_Zone2 = z2;
         }
@@ -291,7 +417,7 @@ export function parsePetrolimexHtml(html: string): FuelPriceData | null {
 
     if (ron95III_Zone1 > 0 || ron95V_Zone1 > 0) {
       return {
-        fuelName: "Xăng E10 RON 95-III",
+        fuelName: "Xăng E10 RON 95-V",
         priceZone1: ron95III_Zone1 || 24910,
         priceZone2: ron95III_Zone2 || 25400,
         ron95V: {

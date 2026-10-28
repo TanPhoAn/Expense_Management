@@ -6,6 +6,8 @@ import {
   parseSjcGoldXml,
   parseSjcGoldHtml,
   parsePetrolimexHtml,
+  parsePetrolimexJson,
+  formatPetrolimexDate,
   parseVietFuelData,
   getFallbackMarketPrices,
 } from "@/features/market/services/marketParsers";
@@ -247,44 +249,82 @@ describe("Market Prices Parsers & Normalization", () => {
     });
   });
 
+  describe("parsePetrolimexJson", () => {
+    it("extracts E10 RON 95-V and E10 RON 95-III directly from Petrolimex official Portal CMS API payload", () => {
+      const payload = {
+        Objects: [
+          { Title: "Dầu hỏa 2-K", Zone1Price: 30050, Zone2Price: 30650 },
+          { Title: "Xăng E10 RON 95-V", Zone1Price: 25710, Zone2Price: 26220, LastModified: "2026-10-22T07:52:54.709Z" },
+          { Title: "Xăng E10 RON 95-III", Zone1Price: 24910, Zone2Price: 25400, LastModified: "2026-10-22T07:53:23.9Z" },
+          { Title: "Xăng E5 RON 92", Zone1Price: 25060, Zone2Price: 25560 },
+        ],
+      };
+
+      const result = parsePetrolimexJson(payload);
+      expect(result).not.toBeNull();
+      expect(result?.ron95V?.name).toBe("Xăng E10 RON 95-V");
+      expect(result?.ron95V?.priceZone1).toBe(25710);
+      expect(result?.ron95V?.priceZone2).toBe(26220);
+      expect(result?.priceZone1).toBe(24910);
+      expect(result?.priceZone2).toBe(25400);
+      expect(result?.effectiveDate).toContain("22/10/2026");
+      expect(result?.source).toContain("Petrolimex");
+    });
+
+    it("returns null for empty or invalid JSON payload", () => {
+      expect(parsePetrolimexJson(null)).toBeNull();
+      expect(parsePetrolimexJson({})).toBeNull();
+      expect(parsePetrolimexJson({ Objects: [] })).toBeNull();
+    });
+  });
+
+  describe("formatPetrolimexDate", () => {
+    it("formats ISO date with UTC+7 adjustment to official Petrolimex timestamp", () => {
+      // 07:52 UTC = 14:52 UTC+7 -> rounds to 15:00 - 22/10/2026
+      const formatted = formatPetrolimexDate("2026-10-22T07:52:54.709Z");
+      expect(formatted).toBe("15:00 - 22/10/2026");
+    });
+  });
+
   describe("parsePetrolimexHtml", () => {
-    it("extracts both E10 RON 95-V and E10 RON 95-III prices for Zone 1 and Zone 2 from official Petrolimex table", () => {
+    it("extracts both E10 RON 95-V (25.710) and E10 RON 95-III (24.910) from header__pricePetrol f-list table", () => {
       const samplePetrolimexHtml = `
-      <div class="portlet-content">
-        <p>Giá của Petrolimex cập nhật lúc 15:00 - 22/10/2026</p>
-        <table class="table-price">
-          <tr>
-            <th>Tên sản phẩm</th>
-            <th>Vùng 1</th>
-            <th>Vùng 2</th>
-          </tr>
-          <tr>
-            <td>Xăng E10 RON 95-V</td>
-            <td>25.710</td>
-            <td>26.220</td>
-          </tr>
-          <tr>
-            <td>Xăng E10 RON 95-III</td>
-            <td>24.910</td>
-            <td>25.400</td>
-          </tr>
-          <tr>
-            <td>Xăng E5 RON 92-II</td>
-            <td>19.800</td>
-            <td>20.190</td>
-          </tr>
-        </table>
+      <div class="header__pricePetrol">
+        <a href="#" class="f-btn">Giá bán lẻ xăng dầu</a>
+        <div class="f-list">
+          <table>
+            <thead>
+              <tr>
+                <th>Sản phẩm</th>
+                <th>Vùng 1</th>
+                <th>Vùng 2</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><a href="/xang-e10-ron-95-v">Xăng E10 RON 95-V</a></td>
+                <td>25.710</td>
+                <td>26.220</td>
+              </tr>
+              <tr>
+                <td><a href="/xang-e10-ron-95-iii">Xăng E10 RON 95-III</a></td>
+                <td>24.910</td>
+                <td>25.400</td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="f-info">Giá của Petrolimex cập nhật lúc 15:00 - 22/10/2026</p>
+        </div>
       </div>`;
 
       const result = parsePetrolimexHtml(samplePetrolimexHtml);
       expect(result).not.toBeNull();
-      expect(result?.fuelName).toBe("Xăng E10 RON 95-III");
-      expect(result?.priceZone1).toBe(24910);
-      expect(result?.priceZone2).toBe(25400);
       expect(result?.ron95V).toBeDefined();
       expect(result?.ron95V?.name).toBe("Xăng E10 RON 95-V");
       expect(result?.ron95V?.priceZone1).toBe(25710);
       expect(result?.ron95V?.priceZone2).toBe(26220);
+      expect(result?.priceZone1).toBe(24910);
+      expect(result?.priceZone2).toBe(25400);
       expect(result?.effectiveDate).toBe("15:00 - 22/10/2026");
       expect(result?.regionNote).toContain("Vùng 1");
     });

@@ -182,7 +182,7 @@ export function MarketPricesWidget() {
           </CardContent>
         </Card>
 
-        {/* ================= COLUMN 2: XĂNG E10 RON 95-III & RON 95-V (PETROLIMEX VÙNG 1) ================= */}
+        {/* ================= COLUMN 2: XĂNG E10 RON 95-V & RON 95-III (PETROLIMEX VÙNG 1) ================= */}
         <Card className="relative overflow-hidden border border-emerald-500/25 bg-gradient-to-br from-emerald-500/10 via-emerald-500/[0.03] to-background shadow-xs hover:shadow-md transition-all rounded-2xl">
           <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none" />
 
@@ -197,9 +197,6 @@ export function MarketPricesWidget() {
                   <h3 className="font-bold text-sm sm:text-base leading-tight text-foreground flex items-center gap-1.5">
                     <span>Xăng E10 RON 95 (Petrolimex)</span>
                   </h3>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                    Giá bán lẻ Vùng 1 (Áp dụng tại TP.HCM & kho đầu mối)
-                  </p>
                 </div>
               </div>
 
@@ -216,33 +213,27 @@ export function MarketPricesWidget() {
               </Badge>
             </div>
 
-            {/* Price Numbers Section: 2 Columns for RON 95-III and RON 95-V */}
+            {/* Price Numbers Section: 2 Columns for RON 95-V and RON 95-III */}
             <div className="grid grid-cols-2 gap-2 bg-background/60 dark:bg-card/40 border border-border/50 rounded-xl p-3 backdrop-blur-xs">
-              {/* Xăng E10 RON 95-III (Phổ thông) */}
+              {/* Xăng E10 RON 95-V (Mặt hàng chính) */}
               <div>
-                <div className="flex items-center gap-1">
-                  <p className="text-[11px] font-semibold text-foreground truncate">E10 RON 95-III</p>
-                  <span className="text-[9px] bg-muted px-1 rounded text-muted-foreground shrink-0">Euro 3</span>
-                </div>
-                <p className="text-lg sm:text-xl font-extrabold text-emerald-600 dark:text-emerald-400 tracking-tight mt-0.5">
-                  {fuel ? formatVND(fuel.priceZone1) : "—"}
-                </p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">
-                  Vùng 2: {fuel?.priceZone2 ? formatVND(fuel.priceZone2) : "—"}
-                </p>
-              </div>
-
-              {/* Xăng E10 RON 95-V (Cao cấp) */}
-              <div className="border-l border-border/60 pl-3">
                 <div className="flex items-center gap-1">
                   <p className="text-[11px] font-semibold text-foreground truncate">E10 RON 95-V</p>
                   <span className="text-[9px] bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 px-1 rounded font-medium shrink-0">Euro 5</span>
                 </div>
                 <p className="text-lg sm:text-xl font-extrabold text-emerald-600 dark:text-emerald-400 tracking-tight mt-0.5">
-                  {fuel?.ron95V ? formatVND(fuel.ron95V.priceZone1) : (fuel ? formatVND(25710) : "—")}
+                  {fuel?.ron95V ? `${formatVND(fuel.ron95V.priceZone1)}/lít` : (fuel ? `${formatVND(25710)}/lít` : "—")}
                 </p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">
-                  Vùng 2: {fuel?.ron95V ? formatVND(fuel.ron95V.priceZone2) : (fuel ? formatVND(26220) : "—")}
+              </div>
+
+              {/* Xăng E10 RON 95-III (Phổ thông) */}
+              <div className="border-l border-border/60 pl-3">
+                <div className="flex items-center gap-1">
+                  <p className="text-[11px] font-semibold text-foreground truncate">E10 RON 95-III</p>
+                  <span className="text-[9px] bg-muted px-1 rounded text-muted-foreground shrink-0">Euro 3</span>
+                </div>
+                <p className="text-base sm:text-lg font-bold text-foreground tracking-tight mt-0.5">
+                  {fuel ? `${formatVND(fuel.priceZone1)}/lít` : "—"}
                 </p>
               </div>
             </div>
