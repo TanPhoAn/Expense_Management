@@ -99,6 +99,11 @@ export function SquareCameraModal({
     return () => setMounted(false);
   }, []);
 
+  // Mark camera ready helper
+  const markCameraReady = useCallback(() => {
+    setIsLoadingCamera(false);
+  }, []);
+
   // Clean up media stream
   const stopCamera = useCallback(() => {
     try {
@@ -146,8 +151,18 @@ export function SquareCameraModal({
         videoRef.current.srcObject = stream;
         videoRef.current.onloadedmetadata = () => {
           videoRef.current?.play().catch(console.error);
-          setIsLoadingCamera(false);
+          markCameraReady();
         };
+        videoRef.current.oncanplay = markCameraReady;
+        videoRef.current.onplaying = markCameraReady;
+        videoRef.current.play().catch(console.error);
+
+        // Safety fallback timer: ensure camera ready state is never stuck
+        setTimeout(() => {
+          if (streamRef.current?.active) {
+            markCameraReady();
+          }
+        }, 500);
       }
     } catch (err: unknown) {
       console.error("Camera access error:", err);
@@ -159,7 +174,7 @@ export function SquareCameraModal({
       setIsLoadingCamera(false);
       toast.error(msg);
     }
-  }, [facingMode, stopCamera]);
+  }, [facingMode, stopCamera, markCameraReady]);
 
   // Handle modal open/close lifecycle
   useEffect(() => {
@@ -195,46 +210,31 @@ export function SquareCameraModal({
   }, [facingMode, isOpen, mode, startCamera]);
 
   // Handle Switch Camera
-  const handleToggleCamera = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleToggleCamera = () => {
     setFacingMode((prev) => (prev === "environment" ? "user" : "environment"));
   };
 
   // Close modal safely
-  const handleClose = (e?: React.MouseEvent) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
+  const handleClose = () => {
     stopCamera();
     onClose();
   };
 
   // Capture square frame and transition to REVIEW mode
-  const handleCapture = (e?: React.MouseEvent | React.TouchEvent) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
+  const handleCapture = () => {
+    if (isLoadingCamera) {
+      toast.info("Đang khởi động camera, xin chờ giây lát...");
+      return;
     }
 
-    if (!videoRef.current || isLoadingCamera) return;
+    if (!videoRef.current) {
+      toast.error("Không tìm thấy hình ảnh từ camera.");
+      return;
+    }
 
     const video = videoRef.current;
-
-    // Ensure video is ready to provide frames
-    if (video.readyState < 2) {
-      toast.error("Camera chưa sẵn sàng. Vui lòng thử lại.");
-      return;
-    }
-
-    const videoWidth = video.videoWidth;
-    const videoHeight = video.videoHeight;
-
-    if (!videoWidth || !videoHeight) {
-      toast.error("Không thể đọc khung hình từ camera.");
-      return;
-    }
+    const videoWidth = video.videoWidth || 640;
+    const videoHeight = video.videoHeight || 480;
 
     // Trigger shutter flash effect
     setIsFlashing(true);
@@ -291,9 +291,7 @@ export function SquareCameraModal({
   };
 
   // Retake photo: discard preview and resume live camera
-  const handleRetake = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleRetake = () => {
     setCapturedFile(null);
     setCapturedPreviewUrl(null);
     setMode("CAMERA");
@@ -303,9 +301,7 @@ export function SquareCameraModal({
   };
 
   // Confirm photo and quick-fill inputs
-  const handleConfirm = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleConfirm = async () => {
     if (!capturedFile) return;
 
     setIsSubmitting(true);
@@ -335,9 +331,6 @@ export function SquareCameraModal({
 
   const modalContent = (
     <div
-      onPointerDown={(e) => e.stopPropagation()}
-      onClick={(e) => e.stopPropagation()}
-      onTouchStart={(e) => e.stopPropagation()}
       className="fixed inset-0 z-[100] bg-black text-white w-screen h-[100dvh] min-h-[100dvh] flex flex-col justify-between overflow-y-auto overflow-x-hidden p-4 sm:p-6 select-none animate-in fade-in duration-200"
       style={{
         paddingTop: "max(1rem, env(safe-area-inset-top))",
@@ -390,6 +383,9 @@ export function SquareCameraModal({
               autoPlay
               playsInline
               muted
+              onLoadedMetadata={markCameraReady}
+              onCanPlay={markCameraReady}
+              onPlaying={markCameraReady}
               className={`w-full h-full object-cover transition-opacity duration-300 ${
                 facingMode === "user" ? "scale-x-[-1]" : ""
               } ${isLoadingCamera ? "opacity-0" : "opacity-100"}`}
@@ -505,12 +501,6 @@ export function SquareCameraModal({
                     const clean = sanitizeCurrencyInput(e.target.value);
                     setAmountInput(clean);
                   }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      e.stopPropagation();
-                    }
-                  }}
                   placeholder="0"
                   className={`w-full text-center text-3xl font-extrabold tracking-tight bg-transparent border-b-2 py-1 outline-none transition-colors placeholder:text-white/20 ${
                     isIncome
@@ -533,12 +523,6 @@ export function SquareCameraModal({
                 type="text"
                 value={descriptionInput}
                 onChange={(e) => setDescriptionInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    e.stopPropagation();
-                  }
-                }}
                 placeholder="Nhập mô tả (vd: Ăn trưa Highland, Đổ xăng...)"
                 className="w-full bg-white/10 border border-white/15 focus:border-primary rounded-xl px-3 py-2 text-xs text-white placeholder:text-white/40 outline-none transition-all"
               />
@@ -555,16 +539,15 @@ export function SquareCameraModal({
             <button
               type="button"
               onClick={handleCapture}
-              onPointerDown={(e) => e.stopPropagation()}
-              disabled={isLoadingCamera || !!cameraError}
-              className={`group relative w-20 h-20 rounded-full border-4 flex items-center justify-center p-1.5 transition-transform active:scale-90 disabled:opacity-50 disabled:pointer-events-none ${
+              disabled={!!cameraError}
+              className={`group relative w-20 h-20 rounded-full border-4 flex items-center justify-center p-1.5 transition-transform active:scale-90 cursor-pointer ${
                 isIncome
                   ? "border-emerald-500 bg-emerald-500/20"
                   : "border-rose-500 bg-rose-500/20"
               }`}
               title="Bấm để chụp ảnh vuông"
             >
-              <div className="w-full h-full bg-white rounded-full shadow-inner transition-transform group-hover:scale-95" />
+              <div className="w-full h-full bg-white rounded-full shadow-inner pointer-events-none transition-transform group-hover:scale-95" />
             </button>
           </div>
         ) : (
@@ -574,9 +557,8 @@ export function SquareCameraModal({
             <button
               type="button"
               onClick={handleRetake}
-              onPointerDown={(e) => e.stopPropagation()}
               disabled={isSubmitting}
-              className="flex-1 h-12 rounded-xl bg-rose-500/15 border border-rose-500/40 text-rose-400 hover:bg-rose-500 hover:text-white flex items-center justify-center gap-2 font-semibold text-xs transition-all active:scale-95 disabled:opacity-50"
+              className="flex-1 h-12 rounded-xl bg-rose-500/15 border border-rose-500/40 text-rose-400 hover:bg-rose-500 hover:text-white flex items-center justify-center gap-2 font-semibold text-xs transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
               title="Hủy bỏ và chụp lại"
             >
               <X className="w-5 h-5 stroke-[2.5]" />
@@ -587,9 +569,8 @@ export function SquareCameraModal({
             <button
               type="button"
               onClick={handleConfirm}
-              onPointerDown={(e) => e.stopPropagation()}
               disabled={isSubmitting}
-              className="flex-1 h-12 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center gap-2 font-semibold text-xs shadow-lg shadow-emerald-500/30 transition-all active:scale-95 disabled:opacity-50"
+              className="flex-1 h-12 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center gap-2 font-semibold text-xs shadow-lg shadow-emerald-500/30 transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
               title="Xác nhận sử dụng ảnh và thông tin"
             >
               {isSubmitting ? (
