@@ -323,6 +323,7 @@ export function QuickAddModal({
             value={receiptUrlValue}
             onChange={(url) => setValue("receiptUrl", url, { shouldValidate: true })}
             disabled={isSubmitting}
+            type={selectedType}
           />
 
           <DialogFooter className="pt-2">

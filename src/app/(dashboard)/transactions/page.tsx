@@ -588,6 +588,7 @@ export default function TransactionsPage() {
                     }
                   }}
                   disabled={isUpdating}
+                  type={editType}
                 />
               </div>
             </div>

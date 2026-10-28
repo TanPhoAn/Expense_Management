@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { compressImageClient } from "@/lib/utils/image";
 import { Camera, Image as ImageIcon, Trash2, Loader2, Eye } from "lucide-react";
+import { SquareCameraModal } from "@/components/ui/SquareCameraModal";
 import { toast } from "sonner";
 
 interface ReceiptUploadFieldProps {
@@ -12,6 +13,7 @@ interface ReceiptUploadFieldProps {
   onChange: (url: string | null) => void;
   onPreview?: (url: string) => void;
   disabled?: boolean;
+  type?: "INCOME" | "EXPENSE";
 }
 
 export function ReceiptUploadField({
@@ -19,11 +21,13 @@ export function ReceiptUploadField({
   onChange,
   onPreview,
   disabled = false,
+  type = "EXPENSE",
 }: ReceiptUploadFieldProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [isMobileDevice, setIsMobileDevice] = useState(false);
+  const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
 
-  // Separate refs for regular file picker vs direct mobile camera capture
+  // Separate refs for regular file picker vs native fallback camera capture
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
@@ -42,18 +46,7 @@ export function ReceiptUploadField({
     return () => window.removeEventListener("resize", detectMobile);
   }, []);
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Reset input value so selecting the same file again triggers onChange
-    e.target.value = "";
-
-    if (!file.type.startsWith("image/")) {
-      toast.error("Vui lòng chọn tệp hình ảnh (JPG, PNG, WebP).");
-      return;
-    }
-
+  const uploadFile = async (file: File) => {
     setIsUploading(true);
     try {
       // 1. Client-side compression to JPEG under ~300KB
@@ -87,6 +80,35 @@ export function ReceiptUploadField({
     }
   };
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Reset input value so selecting the same file again triggers onChange
+    e.target.value = "";
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Vui lòng chọn tệp hình ảnh (JPG, PNG, WebP).");
+      return;
+    }
+
+    await uploadFile(file);
+  };
+
+  const handleOpenCapture = () => {
+    if (disabled || isUploading) return;
+    const hasCameraApi =
+      typeof navigator !== "undefined" &&
+      !!navigator.mediaDevices &&
+      typeof navigator.mediaDevices.getUserMedia === "function";
+
+    if (hasCameraApi) {
+      setIsCameraModalOpen(true);
+    } else {
+      cameraInputRef.current?.click();
+    }
+  };
+
   const handleRemove = () => {
     onChange(null);
     toast.info("Đã gỡ ảnh hóa đơn.");
@@ -109,7 +131,7 @@ export function ReceiptUploadField({
         disabled={disabled || isUploading}
       />
 
-      {/* Hidden input for direct mobile camera capture (rear environment camera) */}
+      {/* Hidden input fallback for direct mobile camera capture */}
       <input
         ref={cameraInputRef}
         type="file"
@@ -174,12 +196,12 @@ export function ReceiptUploadField({
         <>
           {/* MOBILE VIEW (shown on mobile devices or screens < sm): 2 distinct touch-friendly action buttons */}
           <div className={isMobileDevice ? "grid grid-cols-2 gap-2" : "grid grid-cols-2 gap-2 sm:hidden"}>
-            {/* Button 1: Chụp ảnh trực tiếp với camera sau điện thoại */}
+            {/* Button 1: Chụp ảnh trực tiếp với camera vuông tùy chỉnh */}
             <Button
               type="button"
               variant="outline"
               disabled={disabled || isUploading}
-              onClick={() => cameraInputRef.current?.click()}
+              onClick={handleOpenCapture}
               className="h-11 flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-primary/40 bg-primary/5 text-primary hover:bg-primary/10 font-semibold text-xs transition-all active:scale-95"
             >
               <Camera className="w-4 h-4 text-primary shrink-0" />
@@ -213,6 +235,14 @@ export function ReceiptUploadField({
           </div>
         </>
       )}
+
+      {/* Custom In-App Square Camera Viewfinder Modal with Humorous Quotes */}
+      <SquareCameraModal
+        isOpen={isCameraModalOpen}
+        onClose={() => setIsCameraModalOpen(false)}
+        onCapture={uploadFile}
+        type={type}
+      />
     </div>
   );
 }
