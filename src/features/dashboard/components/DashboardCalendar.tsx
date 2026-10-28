@@ -281,15 +281,15 @@ export function DashboardCalendar({
                 type="button"
                 onClick={() => handleCellClick(cell)}
                 className={cn(
-                  "group relative min-h-[58px] sm:min-h-[68px] p-1 rounded-xl flex flex-col items-center justify-between transition-all border cursor-pointer outline-none focus:ring-2 focus:ring-primary/40",
+                  "group relative h-[62px] sm:h-[70px] p-1 rounded-xl flex flex-col items-center justify-between transition-all border border-transparent cursor-pointer outline-none overflow-hidden",
                   cell.isCurrentMonth
-                    ? "bg-background text-foreground hover:bg-muted/60 border-border/40 hover:border-border"
-                    : "bg-muted/15 text-muted-foreground/35 hover:bg-muted/30 border-transparent",
+                    ? "text-foreground hover:bg-muted/60"
+                    : "text-muted-foreground/35 hover:bg-muted/30",
                   cell.isToday &&
-                    "border-blue-300 dark:border-blue-700 bg-blue-50/40 dark:bg-blue-950/20",
+                    "bg-blue-50/50 dark:bg-blue-950/20",
                   selectedDayDate === cell.dateStr &&
                     isDayDetailOpen &&
-                    "ring-2 ring-primary border-primary bg-primary/5"
+                    "ring-2 ring-primary bg-primary/5"
                 )}
                 title={
                   hasTransactions
@@ -298,7 +298,7 @@ export function DashboardCalendar({
                 }
               >
                 {/* Day number with circle highlight if today */}
-                <div className="w-full flex justify-center items-center mt-0.5">
+                <div className="w-full flex justify-center items-center mt-0.5 shrink-0">
                   {cell.isToday ? (
                     <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs sm:text-sm shadow-sm transition-transform group-active:scale-95">
                       {cell.dayNum}
@@ -318,26 +318,26 @@ export function DashboardCalendar({
                 </div>
 
                 {/* Day Content: Avatar Stack & Micro status indicators */}
-                <div className="w-full flex flex-col items-center justify-center min-h-[22px] pb-0.5">
+                <div className="w-full flex flex-col items-center justify-center min-h-[22px] pb-0.5 overflow-hidden">
                   {hasTransactions ? (
-                    <div className="flex flex-col items-center gap-0.5 w-full">
-                      {/* Avatar Stack */}
-                      <div className="flex -space-x-1.5 items-center justify-center">
+                    <div className="flex flex-col items-center gap-0.5 w-full overflow-hidden">
+                      {/* Avatar Stack with strictly constrained dimensions */}
+                      <div className="flex -space-x-1.5 items-center justify-center max-w-full overflow-hidden">
                         {visibleAvatars.map((tx) => (
                           <div
                             key={tx.id}
-                            className="relative w-4.5 h-4.5 rounded-full overflow-hidden ring-1.5 ring-background shadow-xs shrink-0 flex items-center justify-center"
+                            className="relative w-[18px] h-[18px] min-w-[18px] min-h-[18px] max-w-[18px] max-h-[18px] rounded-full overflow-hidden ring-1 ring-background shadow-xs shrink-0 flex items-center justify-center bg-muted"
                           >
                             {tx.receiptUrl ? (
                               // eslint-disable-next-line @next/next/no-img-element
                               <img
                                 src={getReceiptThumbnailUrl(tx.receiptUrl) || tx.receiptUrl}
                                 alt={tx.description}
-                                className="w-full h-full object-cover"
+                                className="w-[18px] h-[18px] min-w-[18px] min-h-[18px] object-cover rounded-full block shrink-0"
                               />
                             ) : (
                               <div
-                                className="w-full h-full flex items-center justify-center text-[8px] font-bold text-white uppercase"
+                                className="w-full h-full rounded-full flex items-center justify-center text-[9px] font-bold text-white uppercase shrink-0"
                                 style={{ backgroundColor: tx.category?.color || "#64748b" }}
                               >
                                 {tx.category?.name ? tx.category.name.charAt(0) : "T"}
@@ -348,7 +348,7 @@ export function DashboardCalendar({
 
                         {/* +N Badge if > 2 transactions */}
                         {remainingCount > 0 && (
-                          <div className="w-4.5 h-4.5 rounded-full bg-muted border border-border text-[8px] font-bold text-muted-foreground ring-1 ring-background shadow-xs shrink-0 flex items-center justify-center">
+                          <div className="w-[18px] h-[18px] min-w-[18px] min-h-[18px] max-w-[18px] max-h-[18px] rounded-full bg-muted border border-border text-[8px] font-bold text-muted-foreground ring-1 ring-background shadow-xs shrink-0 flex items-center justify-center">
                             +{remainingCount}
                           </div>
                         )}
