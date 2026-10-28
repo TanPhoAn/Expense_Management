@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { X, SwitchCamera, Loader2, AlertCircle, Check, Calendar } from "lucide-react";
 import { formatNumberVN, sanitizeCurrencyInput } from "@/lib/utils/currency";
@@ -210,18 +210,29 @@ export function SquareCameraModal({
   }, [facingMode, isOpen, mode, startCamera]);
 
   // Handle Switch Camera
-  const handleToggleCamera = () => {
+  const handleToggleCamera = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     setFacingMode((prev) => (prev === "environment" ? "user" : "environment"));
   };
 
   // Close modal safely
-  const handleClose = () => {
+  const handleClose = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     stopCamera();
     onClose();
   };
 
   // Capture square frame and transition to REVIEW mode
-  const handleCapture = () => {
+  const handleCapture = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
     if (isLoadingCamera) {
       toast.info("Đang khởi động camera, xin chờ giây lát...");
       return;
@@ -291,7 +302,11 @@ export function SquareCameraModal({
   };
 
   // Retake photo: discard preview and resume live camera
-  const handleRetake = () => {
+  const handleRetake = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     setCapturedFile(null);
     setCapturedPreviewUrl(null);
     setMode("CAMERA");
@@ -301,7 +316,11 @@ export function SquareCameraModal({
   };
 
   // Confirm photo and quick-fill inputs
-  const handleConfirm = async () => {
+  const handleConfirm = async (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     if (!capturedFile) return;
 
     setIsSubmitting(true);
@@ -324,283 +343,272 @@ export function SquareCameraModal({
     }
   };
 
-  if (!mounted) return null;
+  if (!mounted || !isOpen) return null;
 
   const isIncome = type === "INCOME";
 
-  return (
-    <DialogPrimitive.Root open={isOpen} onOpenChange={(open) => { if (!open) handleClose(); }}>
-      <DialogPrimitive.Portal>
-        <DialogPrimitive.Content
-          className="fixed inset-0 z-[100] bg-black text-white w-screen h-[100dvh] min-h-[100dvh] flex flex-col justify-between overflow-y-auto overflow-x-hidden p-4 sm:p-6 select-none animate-in fade-in duration-200 outline-none"
-          style={{
-            paddingTop: "max(1rem, env(safe-area-inset-top))",
-            paddingBottom: "max(1rem, env(safe-area-inset-bottom))",
-          }}
-          onPointerDownOutside={(e) => e.preventDefault()}
-          onInteractOutside={(e) => e.preventDefault()}
+  const modalContent = (
+    <div
+      className="fixed inset-0 z-[9999] pointer-events-auto bg-black text-white w-screen h-[100dvh] min-h-[100dvh] flex flex-col justify-between overflow-y-auto overflow-x-hidden p-4 sm:p-6 select-none animate-in fade-in duration-200"
+      style={{
+        paddingTop: "max(1rem, env(safe-area-inset-top))",
+        paddingBottom: "max(1rem, env(safe-area-inset-bottom))",
+      }}
+    >
+      {/* Top Header Bar */}
+      <div className="w-full max-w-md mx-auto flex items-center justify-between z-10 shrink-0">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={handleClose}
+          disabled={isSubmitting}
+          className="text-white/80 hover:text-white hover:bg-white/10 rounded-full w-10 h-10 cursor-pointer pointer-events-auto"
+          title="Đóng camera"
         >
-          {/* Accessibility Hidden Labels */}
-          <DialogPrimitive.Title className="sr-only">
-            {mode === "CAMERA" ? "Chụp ảnh hóa đơn" : "Xem trước & Xác nhận"}
-          </DialogPrimitive.Title>
-          <DialogPrimitive.Description className="sr-only">
-            Giao diện camera chụp và xem trước hóa đơn giao dịch
-          </DialogPrimitive.Description>
+          <X className="w-6 h-6" />
+        </Button>
 
-          {/* Top Header Bar */}
-          <div className="w-full max-w-md mx-auto flex items-center justify-between z-10 shrink-0">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={handleClose}
-              disabled={isSubmitting}
-              className="text-white/80 hover:text-white hover:bg-white/10 rounded-full w-10 h-10 cursor-pointer"
-            >
-              <X className="w-6 h-6" />
-            </Button>
+        <span className="text-xs font-bold uppercase tracking-wider text-white/80">
+          {mode === "CAMERA" ? "Chụp ảnh hóa đơn" : "Xem trước & Xác nhận"}
+        </span>
 
-            <span className="text-xs font-bold uppercase tracking-wider text-white/80">
-              {mode === "CAMERA" ? "Chụp ảnh hóa đơn" : "Xem trước & Xác nhận"}
-            </span>
+        {mode === "CAMERA" ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={handleToggleCamera}
+            disabled={isLoadingCamera || !!cameraError}
+            className="text-white/80 hover:text-white hover:bg-white/10 rounded-full w-10 h-10 cursor-pointer pointer-events-auto"
+            title="Đổi camera trước/sau"
+          >
+            <SwitchCamera className="w-5 h-5" />
+          </Button>
+        ) : (
+          <div className="w-10 h-10" />
+        )}
+      </div>
 
-            {mode === "CAMERA" ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={handleToggleCamera}
-                disabled={isLoadingCamera || !!cameraError}
-                className="text-white/80 hover:text-white hover:bg-white/10 rounded-full w-10 h-10 cursor-pointer"
-                title="Đổi camera trước/sau"
-              >
-                <SwitchCamera className="w-5 h-5" />
-              </Button>
-            ) : (
-              <div className="w-10 h-10" />
-            )}
-          </div>
+      {/* Main Body Area */}
+      {mode === "CAMERA" ? (
+        /* ================= MODE A: LIVE CAMERA VIEWFINDER ================= */
+        <div className="flex-1 flex flex-col justify-center items-center my-auto py-2">
+          {/* Central 1:1 Square Viewfinder */}
+          <div className="relative w-full max-w-[320px] sm:max-w-[360px] aspect-square mx-auto rounded-3xl overflow-hidden border border-white/20 shadow-2xl bg-neutral-900 flex items-center justify-center">
+            {/* Live video feed */}
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              onLoadedMetadata={markCameraReady}
+              onCanPlay={markCameraReady}
+              onPlaying={markCameraReady}
+              className={`w-full h-full object-cover transition-opacity duration-300 ${
+                facingMode === "user" ? "scale-x-[-1]" : ""
+              } ${isLoadingCamera ? "opacity-0" : "opacity-100"}`}
+            />
 
-          {/* Main Body Area */}
-          {mode === "CAMERA" ? (
-            /* ================= MODE A: LIVE CAMERA VIEWFINDER ================= */
-            <div className="flex-1 flex flex-col justify-center items-center my-auto py-2">
-              {/* Central 1:1 Square Viewfinder */}
-              <div className="relative w-full max-w-[320px] sm:max-w-[360px] aspect-square mx-auto rounded-3xl overflow-hidden border border-white/20 shadow-2xl bg-neutral-900 flex items-center justify-center">
-                {/* Live video feed */}
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  onLoadedMetadata={markCameraReady}
-                  onCanPlay={markCameraReady}
-                  onPlaying={markCameraReady}
-                  className={`w-full h-full object-cover transition-opacity duration-300 ${
-                    facingMode === "user" ? "scale-x-[-1]" : ""
-                  } ${isLoadingCamera ? "opacity-0" : "opacity-100"}`}
-                />
-
-                {/* Loading Indicator */}
-                {isLoadingCamera && !cameraError && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-white/70">
-                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                    <span className="text-xs font-medium">Đang khởi động camera...</span>
-                  </div>
-                )}
-
-                {/* Error Fallback Notice */}
-                {cameraError && (
-                  <div className="absolute inset-0 p-6 flex flex-col items-center justify-center text-center gap-3 bg-neutral-950 text-white">
-                    <AlertCircle className="w-10 h-10 text-rose-500" />
-                    <p className="text-xs text-neutral-300 leading-relaxed">{cameraError}</p>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={startCamera}
-                      className="text-xs text-white border-white/20 hover:bg-white/10 cursor-pointer"
-                    >
-                      Thử lại
-                    </Button>
-                  </div>
-                )}
-
-                {/* 4 Luminous Framing Corner Guides */}
-                {!isLoadingCamera && !cameraError && (
-                  <div className="absolute inset-3 pointer-events-none">
-                    <div
-                      className={`absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 rounded-tl-xl ${
-                        isIncome ? "border-emerald-400" : "border-rose-400"
-                      }`}
-                    />
-                    <div
-                      className={`absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 rounded-tr-xl ${
-                        isIncome ? "border-emerald-400" : "border-rose-400"
-                      }`}
-                    />
-                    <div
-                      className={`absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 rounded-bl-xl ${
-                        isIncome ? "border-emerald-400" : "border-rose-400"
-                      }`}
-                    />
-                    <div
-                      className={`absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 rounded-br-xl ${
-                        isIncome ? "border-emerald-400" : "border-rose-400"
-                      }`}
-                    />
-                  </div>
-                )}
-
-                {/* White Shutter Flash overlay */}
-                {isFlashing && (
-                  <div className="absolute inset-0 bg-white opacity-90 transition-opacity duration-150 pointer-events-none" />
-                )}
+            {/* Loading Indicator */}
+            {isLoadingCamera && !cameraError && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-white/70">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                <span className="text-xs font-medium">Đang khởi động camera...</span>
               </div>
+            )}
 
-              {/* Dynamic Humorous Quote Bar */}
-              <div className="w-full max-w-sm mx-auto text-center px-4 mt-3">
+            {/* Error Fallback Notice */}
+            {cameraError && (
+              <div className="absolute inset-0 p-6 flex flex-col items-center justify-center text-center gap-3 bg-neutral-950 text-white">
+                <AlertCircle className="w-10 h-10 text-rose-500" />
+                <p className="text-xs text-neutral-300 leading-relaxed">{cameraError}</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={startCamera}
+                  className="text-xs text-white border-white/20 hover:bg-white/10 cursor-pointer pointer-events-auto"
+                >
+                  Thử lại
+                </Button>
+              </div>
+            )}
+
+            {/* 4 Luminous Framing Corner Guides */}
+            {!isLoadingCamera && !cameraError && (
+              <div className="absolute inset-3 pointer-events-none">
                 <div
-                  className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold backdrop-blur-md border shadow-lg transition-all ${
-                    isIncome
-                      ? "bg-emerald-950/80 border-emerald-500/40 text-emerald-300"
-                      : "bg-rose-950/80 border-rose-500/40 text-rose-300"
+                  className={`absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 rounded-tl-xl ${
+                    isIncome ? "border-emerald-400" : "border-rose-400"
                   }`}
-                >
-                  <span>{quote}</span>
-                </div>
-              </div>
-            </div>
-          ) : (
-            /* ================= MODE B: POST-CAPTURE REVIEW & QUICK FILL ================= */
-            <div className="flex-1 flex flex-col justify-center items-center my-auto py-2 w-full max-w-sm mx-auto space-y-3">
-              {/* Captured 1:1 Square Image Preview */}
-              <div className="relative w-full max-w-[240px] sm:max-w-[270px] aspect-square rounded-2xl overflow-hidden border border-white/20 shadow-2xl bg-neutral-950">
-                {capturedPreviewUrl && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={capturedPreviewUrl}
-                    alt="Captured receipt preview"
-                    className="w-full h-full object-cover"
-                  />
-                )}
-                <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-full text-[10px] font-medium text-white/80 border border-white/10">
-                  1:1 Vuông
-                </div>
-              </div>
-
-              {/* Fintech-Grade Quick-Fill Form Card */}
-              <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-3.5 backdrop-blur-md space-y-3 shadow-xl select-text">
-                {/* System Date Badge */}
-                <div className="flex items-center justify-center gap-1.5 text-[11px] text-white/60 font-medium">
-                  <Calendar className="w-3.5 h-3.5 text-primary" />
-                  <span>Hôm nay ({formatVNDate(transactionDate, "short")})</span>
-                </div>
-
-                {/* Amount Input with Fintech Typography */}
-                <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-white/70 uppercase tracking-wider block text-center">
-                    Số tiền {isIncome ? "thu nhập" : "chi tiêu"}
-                  </label>
-                  <div className="relative flex items-center justify-center">
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      value={amountInput ? formatNumberVN(amountInput) : ""}
-                      onChange={(e) => {
-                        const clean = sanitizeCurrencyInput(e.target.value);
-                        setAmountInput(clean);
-                      }}
-                      placeholder="0"
-                      className={`w-full text-center text-3xl font-extrabold tracking-tight bg-transparent border-b-2 py-1 outline-none transition-colors placeholder:text-white/20 ${
-                        isIncome
-                          ? "text-emerald-400 border-emerald-500/40 focus:border-emerald-400"
-                          : "text-rose-400 border-rose-500/40 focus:border-rose-400"
-                      }`}
-                    />
-                    <span className="absolute right-2 text-lg font-bold text-white/50 pointer-events-none">
-                      ₫
-                    </span>
-                  </div>
-                </div>
-
-                {/* Description Input */}
-                <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-white/70 uppercase tracking-wider block">
-                    Mô tả giao dịch
-                  </label>
-                  <input
-                    type="text"
-                    value={descriptionInput}
-                    onChange={(e) => setDescriptionInput(e.target.value)}
-                    placeholder="Nhập mô tả (vd: Ăn trưa Highland, Đổ xăng...)"
-                    className="w-full bg-white/10 border border-white/15 focus:border-primary rounded-xl px-3 py-2 text-xs text-white placeholder:text-white/40 outline-none transition-all"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Bottom Controls Bar */}
-          <div className="w-full max-w-sm mx-auto shrink-0 pt-2 pb-1">
-            {mode === "CAMERA" ? (
-              /* Shutter Button */
-              <div className="flex items-center justify-center">
-                <button
-                  type="button"
-                  onClick={handleCapture}
-                  disabled={isLoadingCamera || !!cameraError}
-                  className={`group relative w-20 h-20 rounded-full border-4 flex items-center justify-center p-1.5 transition-transform active:scale-90 cursor-pointer disabled:opacity-50 ${
-                    isIncome
-                      ? "border-emerald-500 bg-emerald-500/20"
-                      : "border-rose-500 bg-rose-500/20"
+                />
+                <div
+                  className={`absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 rounded-tr-xl ${
+                    isIncome ? "border-emerald-400" : "border-rose-400"
                   }`}
-                  title="Bấm để chụp ảnh vuông"
-                >
-                  <div className="w-full h-full bg-white rounded-full shadow-inner pointer-events-none transition-transform group-hover:scale-95" />
-                </button>
-              </div>
-            ) : (
-              /* Review Action Buttons: Red X (Retake) vs Green Check (Accept) */
-              <div className="flex items-center justify-between gap-3">
-                {/* Red "X" Button (Chụp lại) */}
-                <button
-                  type="button"
-                  onClick={handleRetake}
-                  disabled={isSubmitting}
-                  className="flex-1 h-12 rounded-xl bg-rose-500/15 border border-rose-500/40 text-rose-400 hover:bg-rose-500 hover:text-white flex items-center justify-center gap-2 font-semibold text-xs transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
-                  title="Hủy bỏ và chụp lại"
-                >
-                  <X className="w-5 h-5 stroke-[2.5]" />
-                  <span>Chụp lại</span>
-                </button>
-
-                {/* Green "Check" Button (Đồng ý & Sử dụng) */}
-                <button
-                  type="button"
-                  onClick={handleConfirm}
-                  disabled={isSubmitting}
-                  className="flex-1 h-12 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center gap-2 font-semibold text-xs shadow-lg shadow-emerald-500/30 transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
-                  title="Xác nhận sử dụng ảnh và thông tin"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      <span>Đang tải...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Check className="w-5 h-5 stroke-[2.5]" />
-                      <span>Đồng ý</span>
-                    </>
-                  )}
-                </button>
+                />
+                <div
+                  className={`absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 rounded-bl-xl ${
+                    isIncome ? "border-emerald-400" : "border-rose-400"
+                  }`}
+                />
+                <div
+                  className={`absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 rounded-br-xl ${
+                    isIncome ? "border-emerald-400" : "border-rose-400"
+                  }`}
+                />
               </div>
             )}
+
+            {/* White Shutter Flash overlay */}
+            {isFlashing && (
+              <div className="absolute inset-0 bg-white opacity-90 transition-opacity duration-150 pointer-events-none" />
+            )}
           </div>
-        </DialogPrimitive.Content>
-      </DialogPrimitive.Portal>
-    </DialogPrimitive.Root>
+
+          {/* Dynamic Humorous Quote Bar */}
+          <div className="w-full max-w-sm mx-auto text-center px-4 mt-3">
+            <div
+              className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold backdrop-blur-md border shadow-lg transition-all ${
+                isIncome
+                  ? "bg-emerald-950/80 border-emerald-500/40 text-emerald-300"
+                  : "bg-rose-950/80 border-rose-500/40 text-rose-300"
+              }`}
+            >
+              <span>{quote}</span>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* ================= MODE B: POST-CAPTURE REVIEW & QUICK FILL ================= */
+        <div className="flex-1 flex flex-col justify-center items-center my-auto py-2 w-full max-w-sm mx-auto space-y-3">
+          {/* Captured 1:1 Square Image Preview */}
+          <div className="relative w-full max-w-[240px] sm:max-w-[270px] aspect-square rounded-2xl overflow-hidden border border-white/20 shadow-2xl bg-neutral-950">
+            {capturedPreviewUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={capturedPreviewUrl}
+                alt="Captured receipt preview"
+                className="w-full h-full object-cover"
+              />
+            )}
+            <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-full text-[10px] font-medium text-white/80 border border-white/10">
+              1:1 Vuông
+            </div>
+          </div>
+
+          {/* Fintech-Grade Quick-Fill Form Card */}
+          <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-3.5 backdrop-blur-md space-y-3 shadow-xl select-text">
+            {/* System Date Badge */}
+            <div className="flex items-center justify-center gap-1.5 text-[11px] text-white/60 font-medium">
+              <Calendar className="w-3.5 h-3.5 text-primary" />
+              <span>Hôm nay ({formatVNDate(transactionDate, "short")})</span>
+            </div>
+
+            {/* Amount Input with Fintech Typography */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-semibold text-white/70 uppercase tracking-wider block text-center">
+                Số tiền {isIncome ? "thu nhập" : "chi tiêu"}
+              </label>
+              <div className="relative flex items-center justify-center">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={amountInput ? formatNumberVN(amountInput) : ""}
+                  onChange={(e) => {
+                    const clean = sanitizeCurrencyInput(e.target.value);
+                    setAmountInput(clean);
+                  }}
+                  placeholder="0"
+                  className={`w-full text-center text-3xl font-extrabold tracking-tight bg-transparent border-b-2 py-1 outline-none transition-colors placeholder:text-white/20 pointer-events-auto ${
+                    isIncome
+                      ? "text-emerald-400 border-emerald-500/40 focus:border-emerald-400"
+                      : "text-rose-400 border-rose-500/40 focus:border-rose-400"
+                  }`}
+                />
+                <span className="absolute right-2 text-lg font-bold text-white/50 pointer-events-none">
+                  ₫
+                </span>
+              </div>
+            </div>
+
+            {/* Description Input */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-semibold text-white/70 uppercase tracking-wider block">
+                Mô tả giao dịch
+              </label>
+              <input
+                type="text"
+                value={descriptionInput}
+                onChange={(e) => setDescriptionInput(e.target.value)}
+                placeholder="Nhập mô tả (vd: Ăn trưa Highland, Đổ xăng...)"
+                className="w-full bg-white/10 border border-white/15 focus:border-primary rounded-xl px-3 py-2 text-xs text-white placeholder:text-white/40 outline-none transition-all pointer-events-auto"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bottom Controls Bar */}
+      <div className="w-full max-w-sm mx-auto shrink-0 pt-2 pb-1">
+        {mode === "CAMERA" ? (
+          /* Shutter Button */
+          <div className="flex items-center justify-center">
+            <button
+              type="button"
+              onClick={handleCapture}
+              disabled={isLoadingCamera || !!cameraError}
+              className={`group relative w-20 h-20 rounded-full border-4 flex items-center justify-center p-1.5 transition-transform active:scale-90 cursor-pointer pointer-events-auto disabled:opacity-50 ${
+                isIncome
+                  ? "border-emerald-500 bg-emerald-500/20"
+                  : "border-rose-500 bg-rose-500/20"
+              }`}
+              title="Bấm để chụp ảnh vuông"
+            >
+              <div className="w-full h-full bg-white rounded-full shadow-inner pointer-events-none transition-transform group-hover:scale-95" />
+            </button>
+          </div>
+        ) : (
+          /* Review Action Buttons: Red X (Retake) vs Green Check (Accept) */
+          <div className="flex items-center justify-between gap-3">
+            {/* Red "X" Button (Chụp lại) */}
+            <button
+              type="button"
+              onClick={handleRetake}
+              disabled={isSubmitting}
+              className="flex-1 h-12 rounded-xl bg-rose-500/15 border border-rose-500/40 text-rose-400 hover:bg-rose-500 hover:text-white flex items-center justify-center gap-2 font-semibold text-xs transition-all active:scale-95 disabled:opacity-50 cursor-pointer pointer-events-auto"
+              title="Hủy bỏ và chụp lại"
+            >
+              <X className="w-5 h-5 stroke-[2.5]" />
+              <span>Chụp lại</span>
+            </button>
+
+            {/* Green "Check" Button (Đồng ý & Sử dụng) */}
+            <button
+              type="button"
+              onClick={handleConfirm}
+              disabled={isSubmitting}
+              className="flex-1 h-12 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center gap-2 font-semibold text-xs shadow-lg shadow-emerald-500/30 transition-all active:scale-95 disabled:opacity-50 cursor-pointer pointer-events-auto"
+              title="Xác nhận sử dụng ảnh và thông tin"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>Đang tải...</span>
+                </>
+              ) : (
+                <>
+                  <Check className="w-5 h-5 stroke-[2.5]" />
+                  <span>Đồng ý</span>
+                </>
+              )}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
   );
+
+  return createPortal(modalContent, document.body);
 }

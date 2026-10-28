@@ -172,7 +172,7 @@ export function QuickAddModal({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={onClose} modal={false}>
       <DialogContent
         className="sm:max-w-[480px]"
         onPointerDownOutside={(e) => e.preventDefault()}

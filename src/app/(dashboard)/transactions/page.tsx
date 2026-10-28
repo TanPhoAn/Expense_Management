@@ -496,7 +496,7 @@ export default function TransactionsPage() {
 
       {/* Edit Transaction Modal */}
       {editingTx && (
-        <Dialog open={!!editingTx} onOpenChange={() => setEditingTx(null)}>
+        <Dialog open={!!editingTx} onOpenChange={() => setEditingTx(null)} modal={false}>
           <DialogContent
             className="sm:max-w-[480px]"
             onPointerDownOutside={(e) => e.preventDefault()}
