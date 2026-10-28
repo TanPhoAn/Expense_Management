@@ -41,6 +41,22 @@ interface SquareCameraModalProps {
   initialDescription?: string;
 }
 
+/**
+ * Convert a base64 data URL to a File object.
+ * Uses synchronous atob + Uint8Array — works reliably on all iOS Safari versions.
+ */
+function dataURLtoFile(dataURL: string, filename: string): File {
+  const [header, base64Data] = dataURL.split(",");
+  const mimeMatch = header.match(/:(.*?);/);
+  const mime = mimeMatch ? mimeMatch[1] : "image/jpeg";
+  const binaryString = atob(base64Data);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return new File([bytes], filename, { type: mime, lastModified: Date.now() });
+}
+
 export function SquareCameraModal({
   isOpen,
   onClose,
@@ -62,11 +78,13 @@ export function SquareCameraModal({
   const [capturedPreviewUrl, setCapturedPreviewUrl] = useState<string | null>(null);
   const [amountInput, setAmountInput] = useState<string>("");
   const [descriptionInput, setDescriptionInput] = useState<string>("");
-  const [transactionDate, setTransactionDate] = useState<string>(getVietnamTodayString());
+  const [transactionDate] = useState<string>(getVietnamTodayString());
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  // Track preview URL via ref so cleanup functions always have the latest value
+  const previewUrlRef = useRef<string | null>(null);
 
   // SSR-safe mounting check for React Portal
   useEffect(() => {
@@ -74,14 +92,33 @@ export function SquareCameraModal({
     return () => setMounted(false);
   }, []);
 
+  // Helper: revoke current preview URL and clear state
+  const revokePreview = useCallback(() => {
+    if (previewUrlRef.current) {
+      URL.revokeObjectURL(previewUrlRef.current);
+      previewUrlRef.current = null;
+    }
+    setCapturedPreviewUrl(null);
+  }, []);
+
   // Clean up media stream
   const stopCamera = useCallback(() => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
+    try {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => {
+          try {
+            track.stop();
+          } catch {
+            // Silently ignore errors stopping individual tracks
+          }
+        });
+        streamRef.current = null;
+      }
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
+    } catch {
+      // Guard against any unexpected errors during cleanup
     }
   }, []);
 
@@ -131,13 +168,9 @@ export function SquareCameraModal({
     if (isOpen) {
       setMode("CAMERA");
       setCapturedFile(null);
-      if (capturedPreviewUrl) {
-        URL.revokeObjectURL(capturedPreviewUrl);
-        setCapturedPreviewUrl(null);
-      }
+      revokePreview();
       setAmountInput(initialAmount ? String(initialAmount) : "");
       setDescriptionInput(initialDescription || "");
-      setTransactionDate(getVietnamTodayString());
       setIsSubmitting(false);
 
       const list = type === "INCOME" ? INCOME_QUOTES : EXPENSE_QUOTES;
@@ -146,22 +179,21 @@ export function SquareCameraModal({
       startCamera();
     } else {
       stopCamera();
-      if (capturedPreviewUrl) {
-        URL.revokeObjectURL(capturedPreviewUrl);
-        setCapturedPreviewUrl(null);
-      }
+      revokePreview();
     }
 
     return () => {
       stopCamera();
-      if (capturedPreviewUrl) {
-        URL.revokeObjectURL(capturedPreviewUrl);
+      // Use ref (always current) instead of stale closure for cleanup
+      if (previewUrlRef.current) {
+        URL.revokeObjectURL(previewUrlRef.current);
+        previewUrlRef.current = null;
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
-  // Restart camera when switching front/back facingMode
+  // Restart camera when switching front/back facingMode (only in CAMERA mode)
   useEffect(() => {
     if (isOpen && mode === "CAMERA") {
       startCamera();
@@ -178,68 +210,82 @@ export function SquareCameraModal({
     if (!videoRef.current || isLoadingCamera) return;
 
     const video = videoRef.current;
-    const videoWidth = video.videoWidth || 640;
-    const videoHeight = video.videoHeight || 480;
+
+    // Ensure video is ready to provide frames
+    if (video.readyState < 2) {
+      toast.error("Camera chưa sẵn sàng. Vui lòng thử lại.");
+      return;
+    }
+
+    const videoWidth = video.videoWidth;
+    const videoHeight = video.videoHeight;
+
+    if (!videoWidth || !videoHeight) {
+      toast.error("Không thể đọc khung hình từ camera.");
+      return;
+    }
 
     // Trigger shutter flash effect
     setIsFlashing(true);
     setTimeout(() => setIsFlashing(false), 160);
 
-    // Compute center square
-    const size = Math.min(videoWidth, videoHeight);
-    const sx = (videoWidth - size) / 2;
-    const sy = (videoHeight - size) / 2;
+    try {
+      // Compute center square crop
+      const size = Math.min(videoWidth, videoHeight);
+      const sx = (videoWidth - size) / 2;
+      const sy = (videoHeight - size) / 2;
 
-    const canvas = document.createElement("canvas");
-    const targetSize = 1080;
-    canvas.width = targetSize;
-    canvas.height = targetSize;
+      const canvas = document.createElement("canvas");
+      const targetSize = 1080;
+      canvas.width = targetSize;
+      canvas.height = targetSize;
 
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        toast.error("Trình duyệt không hỗ trợ xử lý ảnh Canvas.");
+        return;
+      }
 
-    // If front camera, flip horizontally for mirror preview match
-    if (facingMode === "user") {
-      ctx.translate(targetSize, 0);
-      ctx.scale(-1, 1);
+      // If front camera, flip horizontally for mirror preview match
+      if (facingMode === "user") {
+        ctx.translate(targetSize, 0);
+        ctx.scale(-1, 1);
+      }
+
+      ctx.drawImage(video, sx, sy, size, size, 0, 0, targetSize, targetSize);
+
+      // Use toDataURL (synchronous, much more reliable on iOS Safari than toBlob)
+      const dataURL = canvas.toDataURL("image/jpeg", 0.85);
+
+      if (!dataURL || dataURL === "data:,") {
+        toast.error("Không thể chụp ảnh. Vui lòng thử lại.");
+        return;
+      }
+
+      const file = dataURLtoFile(dataURL, `receipt_${Date.now()}.jpg`);
+      const previewUrl = dataURL; // Use data URL directly as preview (no object URL needed)
+
+      setCapturedFile(file);
+      setCapturedPreviewUrl(previewUrl);
+      previewUrlRef.current = null; // data URLs don't need revoking
+
+      // Turn off camera stream to save battery
+      stopCamera();
+      // Switch to REVIEW mode
+      setMode("REVIEW");
+    } catch (err) {
+      console.error("Capture error:", err);
+      toast.error("Lỗi khi chụp ảnh. Vui lòng thử lại.");
     }
-
-    ctx.drawImage(video, sx, sy, size, size, 0, 0, targetSize, targetSize);
-
-    canvas.toBlob(
-      (blob) => {
-        if (!blob) {
-          toast.error("Lỗi khi xử lý ảnh.");
-          return;
-        }
-
-        const file = new File([blob], `receipt_${Date.now()}.jpg`, {
-          type: "image/jpeg",
-          lastModified: Date.now(),
-        });
-
-        const previewUrl = URL.createObjectURL(blob);
-        setCapturedFile(file);
-        setCapturedPreviewUrl(previewUrl);
-
-        // Turn off camera stream to save battery and switch to REVIEW mode
-        stopCamera();
-        setMode("REVIEW");
-      },
-      "image/jpeg",
-      0.85
-    );
   };
 
   // Retake photo: discard preview and restart camera
   const handleRetake = () => {
-    if (capturedPreviewUrl) {
-      URL.revokeObjectURL(capturedPreviewUrl);
-      setCapturedPreviewUrl(null);
-    }
+    revokePreview();
     setCapturedFile(null);
+    setCapturedPreviewUrl(null);
     setMode("CAMERA");
-    startCamera();
+    // startCamera will be triggered by the useEffect watching [facingMode, isOpen, mode, startCamera]
   };
 
   // Confirm photo and quick-fill inputs
@@ -256,10 +302,7 @@ export function SquareCameraModal({
         date: transactionDate,
       });
 
-      if (capturedPreviewUrl) {
-        URL.revokeObjectURL(capturedPreviewUrl);
-        setCapturedPreviewUrl(null);
-      }
+      revokePreview();
       onClose();
     } catch (err) {
       console.error("Confirm error:", err);
@@ -438,13 +481,13 @@ export function SquareCameraModal({
                 <input
                   type="text"
                   inputMode="numeric"
-                  value={formatNumberVN(amountInput)}
+                  value={amountInput ? formatNumberVN(amountInput) : ""}
                   onChange={(e) => {
                     const clean = sanitizeCurrencyInput(e.target.value);
                     setAmountInput(clean);
                   }}
                   placeholder="0"
-                  className={`w-full text-center text-3xl font-extrabold tracking-tight bg-transparent border-b-2 py-1 outline-none transition-colors ${
+                  className={`w-full text-center text-3xl font-extrabold tracking-tight bg-transparent border-b-2 py-1 outline-none transition-colors placeholder:text-white/20 ${
                     isIncome
                       ? "text-emerald-400 border-emerald-500/40 focus:border-emerald-400"
                       : "text-rose-400 border-rose-500/40 focus:border-rose-400"
