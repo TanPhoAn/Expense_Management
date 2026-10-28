@@ -104,11 +104,12 @@ ${categoriesContext}
 Hãy phân tích câu chat sau đây của người dùng:
 "${message}"
 
-Lưu ý cách nói tiền Việt Nam:
-- "40k", "40 ka", "40 cành" = 40000
-- "50 ngàn", "50 nghìn" = 50000
-- "1.5tr", "1,5 triệu", "1 củ 5" = 1500000
-- "2tr5" = 2500000
+Lưu ý đặc biệt về ngôn ngữ đời thường & tiếng lóng tiền tệ Việt Nam:
+- Bạn có năng lực hiểu mọi cách nói khẩu ngữ, tiếng lóng (Gen Z, địa phương, nói tắt) của người Việt:
+  + Đơn vị ngàn: "k", "ka", "cành", "xu", "chục" (4 chục = 40.000), "lít" / "lốp" (1 lít = 100.000, 2 lít = 200.000), "xị" (1 xị = 100.000), "trăm rưỡi" = 150.000, "hai trăm rưỡi" = 250.000.
+  + Đơn vị triệu: "tr", "triệu", "củ", "chai", "vé" (1 củ = 1.000.000, 1 củ 2 = 1.200.000, 2 củ rưỡi / 2 củ 5 = 2.500.000, nửa củ = 500.000, 3 chai = 3.000.000).
+  + Từ viết tắt & ngữ cảnh: "cf" / "cà phê", "trà sữa", "đổ xăng", "bún bò", "cơm gà", "bắn tiền", "nhận lương", "ting ting".
+- Hãy tự động chuyển đổi mọi từ lóng, tiếng đệm sang số tiền nguyên bản integer (VND) một cách thông minh và linh hoạt nhất.
 
 Nhiệm vụ:
 1. Xác định ý định người dùng (action):
