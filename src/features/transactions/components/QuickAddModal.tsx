@@ -33,6 +33,7 @@ interface QuickAddModalProps {
   onClose: () => void;
   categories: Category[];
   defaultType?: "INCOME" | "EXPENSE";
+  defaultDate?: string;
   onTransactionCreated: () => void;
 }
 
@@ -41,6 +42,7 @@ export function QuickAddModal({
   onClose,
   categories,
   defaultType = "EXPENSE",
+  defaultDate,
   onTransactionCreated,
 }: QuickAddModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -61,7 +63,7 @@ export function QuickAddModal({
       amount: "",
       type: defaultType,
       categoryId: "",
-      transactionDate: getVietnamTodayString(),
+      transactionDate: defaultDate || getVietnamTodayString(),
       note: "",
       receiptUrl: null,
     },
@@ -72,15 +74,15 @@ export function QuickAddModal({
   const rawAmount = watch("amount");
   const receiptUrlValue = watch("receiptUrl");
 
-  // Reset form when modal opens with defaultType
+  // Reset form when modal opens with defaultType and defaultDate
   useEffect(() => {
     if (isOpen) {
       setValue("type", defaultType);
-      setValue("transactionDate", getVietnamTodayString());
+      setValue("transactionDate", defaultDate || getVietnamTodayString());
       setErrorMsg(null);
       setSuggestedCategory(null);
     }
-  }, [isOpen, defaultType, setValue]);
+  }, [isOpen, defaultType, defaultDate, setValue]);
 
   // Filter categories matching current transaction type (INCOME or EXPENSE)
   const filteredCategories = categories.filter((c) => c.type === selectedType);

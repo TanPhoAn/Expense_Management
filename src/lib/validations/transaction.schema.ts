@@ -28,7 +28,7 @@ export const updateTransactionSchema = createTransactionSchema.partial();
 
 export const transactionFilterSchema = z.object({
   page: z.coerce.number().int().positive().default(1),
-  pageSize: z.coerce.number().int().positive().max(100).default(20),
+  pageSize: z.coerce.number().int().positive().max(500).default(20),
   type: transactionTypeEnum.optional(),
   categoryId: z.string().uuid().optional(),
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),

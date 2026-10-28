@@ -16,8 +16,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DashboardCharts } from "@/features/dashboard/components/DashboardCharts";
+import { DashboardCalendar } from "@/features/dashboard/components/DashboardCalendar";
 import { formatVND } from "@/lib/utils/currency";
-import { getVietnamCurrentMonthString, formatVNDate } from "@/lib/utils/date";
+import { getVietnamCurrentMonthString, getMonthDateRange, formatVNDate } from "@/lib/utils/date";
 import { getReceiptThumbnailUrl } from "@/lib/utils/image";
 import { ReceiptLightboxModal, LightboxData } from "@/components/ui/ReceiptLightboxModal";
 import {
@@ -38,22 +39,26 @@ export default function DashboardPage() {
   const [trends, setTrends] = useState<MonthlyTrendItem[]>([]);
   const [dailyTrends, setDailyTrends] = useState<DailyExpenseTrendItem[]>([]);
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
+  const [monthTransactions, setMonthTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [quickAddModalOpen, setQuickAddModalOpen] = useState(false);
   const [quickAddType, setQuickAddType] = useState<"INCOME" | "EXPENSE">("EXPENSE");
+  const [quickAddDate, setQuickAddDate] = useState<string | undefined>(undefined);
   const [lightboxData, setLightboxData] = useState<LightboxData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const loadDashboardData = async (month: string) => {
     setIsLoading(true);
     try {
-      const [sumRes, breakRes, trendRes, dailyRes, txRes, catRes] = await Promise.all([
+      const { startDate, endDate } = getMonthDateRange(month);
+      const [sumRes, breakRes, trendRes, dailyRes, txRes, catRes, monthTxRes] = await Promise.all([
         fetch(`/api/v1/dashboard/summary?month=${month}`),
         fetch(`/api/v1/dashboard/expense-breakdown?month=${month}`),
         fetch(`/api/v1/dashboard/trends?months=6`),
         fetch(`/api/v1/dashboard/trends?month=${month}`),
         fetch(`/api/v1/transactions?pageSize=5`),
         fetch(`/api/v1/categories`),
+        fetch(`/api/v1/transactions?startDate=${startDate}&endDate=${endDate}&pageSize=500`),
       ]);
 
       if (sumRes.ok) {
@@ -79,6 +84,10 @@ export default function DashboardPage() {
       if (catRes.ok) {
         const d = await catRes.json();
         setCategories(d.data || []);
+      }
+      if (monthTxRes.ok) {
+        const d = await monthTxRes.json();
+        setMonthTransactions(d.data || []);
       }
     } catch (err) {
       console.error("Failed to load dashboard data:", err);
@@ -115,6 +124,7 @@ export default function DashboardPage() {
           <Button
             size="sm"
             onClick={() => {
+              setQuickAddDate(undefined);
               setQuickAddType("EXPENSE");
               setQuickAddModalOpen(true);
             }}
@@ -127,6 +137,7 @@ export default function DashboardPage() {
           <Button
             size="sm"
             onClick={() => {
+              setQuickAddDate(undefined);
               setQuickAddType("INCOME");
               setQuickAddModalOpen(true);
             }}
@@ -238,6 +249,19 @@ export default function DashboardPage() {
         </Card>
       </div>
 
+      {/* Interactive Financial Calendar Widget */}
+      <DashboardCalendar
+        selectedMonth={selectedMonth}
+        onMonthChange={(newMonth) => setSelectedMonth(newMonth)}
+        transactions={monthTransactions}
+        onSelectDayForAdd={(dateStr) => {
+          setQuickAddDate(dateStr);
+          setQuickAddType("EXPENSE");
+          setQuickAddModalOpen(true);
+        }}
+        onPreviewReceipt={(data) => setLightboxData(data)}
+      />
+
       {/* Visual Analytics Charts */}
       <DashboardCharts
         breakdown={breakdown}
@@ -336,12 +360,16 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* Quick Add Modal triggered from dashboard buttons */}
+      {/* Quick Add Modal triggered from dashboard buttons or calendar */}
       <QuickAddModal
         isOpen={quickAddModalOpen}
-        onClose={() => setQuickAddModalOpen(false)}
+        onClose={() => {
+          setQuickAddModalOpen(false);
+          setQuickAddDate(undefined);
+        }}
         categories={categories}
         defaultType={quickAddType}
+        defaultDate={quickAddDate}
         onTransactionCreated={() => {
           loadDashboardData(selectedMonth);
         }}
