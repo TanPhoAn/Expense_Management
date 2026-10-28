@@ -3,6 +3,7 @@ import {
   parseSjcGoldJson,
   parseSjcGoldXml,
   parseSjcGoldHtml,
+  parsePetrolimexHtml,
   parseVietFuelData,
   getFallbackMarketPrices,
 } from "./marketParsers";
@@ -94,12 +95,36 @@ async function fetchSjcGoldPrice() {
 }
 
 /**
- * Fetch Gasoline Retail Prices via VietFuel API.
+ * Fetch Gasoline Retail Prices via Petrolimex Official and VietFuel API.
  */
-async function fetchVietFuelPrice() {
+async function fetchFuelPrice() {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 6000);
 
+  // 1. Try Petrolimex homepage directly
+  try {
+    const res = await fetch("https://www.petrolimex.com.vn/", {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      },
+      signal: controller.signal,
+      next: { revalidate: 900 },
+    });
+
+    if (res.ok) {
+      const html = await res.text();
+      const parsed = parsePetrolimexHtml(html);
+      if (parsed) {
+        clearTimeout(timeoutId);
+        return parsed;
+      }
+    }
+  } catch {
+    // Continue
+  }
+
+  // 2. Try VietFuel API endpoint
   const baseUrl =
     process.env.VIETFUEL_API_URL ||
     "https://vietfuel-api.tranqui.workers.dev/api/fuel-prices";
@@ -145,7 +170,7 @@ export async function getMarketPrices(forceRefresh = false): Promise<MarketPrice
   try {
     const [goldResult, fuelResult] = await Promise.allSettled([
       fetchSjcGoldPrice(),
-      fetchVietFuelPrice(),
+      fetchFuelPrice(),
     ]);
 
     const gold =

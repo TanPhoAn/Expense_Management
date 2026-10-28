@@ -80,10 +80,16 @@ export interface FuelPriceData {
   fuelName: string;
   priceZone1: number;
   priceZone2?: number;
+  ron95V?: {
+    name: string;
+    priceZone1: number;
+    priceZone2: number;
+  };
   effectiveDate: string;
   trend: 'UP' | 'DOWN' | 'UNCHANGED';
   changeAmount?: number;
   source: string;
+  regionNote?: string;
 }
 
 export interface MarketPricesData {

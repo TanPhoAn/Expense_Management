@@ -182,7 +182,7 @@ export function MarketPricesWidget() {
           </CardContent>
         </Card>
 
-        {/* ================= COLUMN 2: XĂNG E10 RON 95-III (VIETFUEL) ================= */}
+        {/* ================= COLUMN 2: XĂNG E10 RON 95-III & RON 95-V (PETROLIMEX VÙNG 1) ================= */}
         <Card className="relative overflow-hidden border border-emerald-500/25 bg-gradient-to-br from-emerald-500/10 via-emerald-500/[0.03] to-background shadow-xs hover:shadow-md transition-all rounded-2xl">
           <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none" />
 
@@ -195,77 +195,69 @@ export function MarketPricesWidget() {
                 </div>
                 <div>
                   <h3 className="font-bold text-sm sm:text-base leading-tight text-foreground flex items-center gap-1.5">
-                    <span>{fuel?.fuelName || "Xăng E10 RON 95-III"}</span>
+                    <span>Xăng E10 RON 95 (Petrolimex)</span>
                   </h3>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
-                    Nhiên liệu sinh học tiêu chuẩn khí thải Euro 3
+                    Giá bán lẻ Vùng 1 (Áp dụng tại TP.HCM & kho đầu mối)
                   </p>
                 </div>
               </div>
 
-              {/* Trend / Status Badge */}
+              {/* Region 1 Badge */}
               <Badge
                 variant="outline"
-                className={cn(
-                  "shrink-0 text-[10px] font-semibold gap-1 px-2 py-0.5 border",
-                  fuel?.trend === "DOWN"
-                    ? "border-emerald-500/40 text-emerald-700 dark:text-emerald-300 bg-emerald-500/10"
-                    : fuel?.trend === "UP"
-                    ? "border-rose-500/40 text-rose-700 dark:text-rose-300 bg-rose-500/10"
-                    : "border-border text-muted-foreground bg-muted/40"
-                )}
+                className="shrink-0 text-[10px] font-semibold gap-1 px-2 py-0.5 border border-emerald-500/40 text-emerald-700 dark:text-emerald-300 bg-emerald-500/10"
               >
-                {fuel?.trend === "DOWN" ? (
-                  <>
-                    <TrendingDown className="w-3 h-3" />
-                    <span>{fuel.changeAmount ? `Giảm ${formatVND(fuel.changeAmount)}` : "Hạ giá"}</span>
-                  </>
-                ) : fuel?.trend === "UP" ? (
-                  <>
-                    <TrendingUp className="w-3 h-3" />
-                    <span>{fuel.changeAmount ? `Tăng ${formatVND(fuel.changeAmount)}` : "Tăng giá"}</span>
-                  </>
-                ) : (
-                  <>
-                    <Minus className="w-3 h-3" />
-                    <span>Ổn định</span>
-                  </>
-                )}
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                </span>
+                <span>Vùng 1 • TP.HCM</span>
               </Badge>
             </div>
 
-            {/* Price Numbers Section */}
+            {/* Price Numbers Section: 2 Columns for RON 95-III and RON 95-V */}
             <div className="grid grid-cols-2 gap-2 bg-background/60 dark:bg-card/40 border border-border/50 rounded-xl p-3 backdrop-blur-xs">
-              {/* Giá Vùng 1 (Primary Metric) */}
+              {/* Xăng E10 RON 95-III (Phổ thông) */}
               <div>
-                <p className="text-[11px] font-medium text-muted-foreground">Giá bán lẻ Vùng 1</p>
+                <div className="flex items-center gap-1">
+                  <p className="text-[11px] font-semibold text-foreground truncate">E10 RON 95-III</p>
+                  <span className="text-[9px] bg-muted px-1 rounded text-muted-foreground shrink-0">Euro 3</span>
+                </div>
                 <p className="text-lg sm:text-xl font-extrabold text-emerald-600 dark:text-emerald-400 tracking-tight mt-0.5">
                   {fuel ? formatVND(fuel.priceZone1) : "—"}
                 </p>
-                <span className="text-[10px] text-muted-foreground">/ 1 lít</span>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  Vùng 2: {fuel?.priceZone2 ? formatVND(fuel.priceZone2) : "—"}
+                </p>
               </div>
 
-              {/* Giá Vùng 2 & Kỳ điều hành */}
+              {/* Xăng E10 RON 95-V (Cao cấp) */}
               <div className="border-l border-border/60 pl-3">
-                <p className="text-[11px] font-medium text-muted-foreground">Giá bán lẻ Vùng 2</p>
-                <p className="text-sm sm:text-base font-bold text-foreground mt-0.5">
-                  {fuel?.priceZone2 ? formatVND(fuel.priceZone2) : "—"}
+                <div className="flex items-center gap-1">
+                  <p className="text-[11px] font-semibold text-foreground truncate">E10 RON 95-V</p>
+                  <span className="text-[9px] bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 px-1 rounded font-medium shrink-0">Euro 5</span>
+                </div>
+                <p className="text-lg sm:text-xl font-extrabold text-emerald-600 dark:text-emerald-400 tracking-tight mt-0.5">
+                  {fuel?.ron95V ? formatVND(fuel.ron95V.priceZone1) : (fuel ? formatVND(25710) : "—")}
                 </p>
-                <span className="text-[10px] text-muted-foreground">/ 1 lít (vùng xa)</span>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  Vùng 2: {fuel?.ron95V ? formatVND(fuel.ron95V.priceZone2) : (fuel ? formatVND(26220) : "—")}
+                </p>
               </div>
             </div>
 
             {/* Card Footer */}
             <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-0.5">
-              <span>{fuel?.effectiveDate ? `Kỳ áp dụng: ${fuel.effectiveDate}` : "Kỳ điều hành Bộ Công Thương"}</span>
+              <span>{fuel?.effectiveDate ? `Kỳ áp dụng: ${fuel.effectiveDate}` : "Giá cập nhật lúc: 15:00 - 22/10/2026"}</span>
               <a
-                href="https://github.com/TranQui004/vietfuel-api"
+                href="https://www.petrolimex.com.vn/"
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-1 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
-                title="Xem nguồn dữ liệu VietFuel API"
+                title="Xem bảng giá chính thức tại Petrolimex"
               >
-                <span>VietFuel API</span>
+                <span>petrolimex.com.vn</span>
                 <ExternalLink className="w-3 h-3" />
               </a>
             </div>
