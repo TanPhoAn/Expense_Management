@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
-import { X, SwitchCamera, Loader2, AlertCircle, Check, Calendar } from "lucide-react";
+import { X, SwitchCamera, Loader2, AlertCircle, Check, Calendar, Sparkles } from "lucide-react";
 import { formatNumberVN, sanitizeCurrencyInput } from "@/lib/utils/currency";
 import { getVietnamTodayString, formatVNDate } from "@/lib/utils/date";
 import { toast } from "sonner";
@@ -89,6 +89,13 @@ export function SquareCameraModal({
   const [descriptionInput, setDescriptionInput] = useState<string>("");
   const [transactionDate] = useState<string>(getVietnamTodayString());
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [isScanningAi, setIsScanningAi] = useState(false);
+  const [aiScanResult, setAiScanResult] = useState<{
+    merchant?: string;
+    description?: string;
+    amount?: number;
+    date?: string;
+  } | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -188,12 +195,16 @@ export function SquareCameraModal({
 
       const list = type === "INCOME" ? INCOME_QUOTES : EXPENSE_QUOTES;
       setQuote(list[Math.floor(Math.random() * list.length)]);
+      setIsScanningAi(false);
+      setAiScanResult(null);
 
       startCamera();
     } else {
       stopCamera();
       setCapturedFile(null);
       setCapturedPreviewUrl(null);
+      setIsScanningAi(false);
+      setAiScanResult(null);
     }
 
     return () => {
@@ -293,6 +304,23 @@ export function SquareCameraModal({
       // Pause video to freeze feed without unbinding stream tracks prematurely
       video.pause();
 
+      // Trigger background AI receipt scan
+      setIsScanningAi(true);
+      setAiScanResult(null);
+      fetch("/api/v1/ai/receipt-scan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dataUrl: dataURL }),
+      })
+        .then((res) => res.json())
+        .then((json) => {
+          if (json.data && (json.data.amount > 0 || json.data.description)) {
+            setAiScanResult(json.data);
+          }
+        })
+        .catch((err) => console.warn("Background AI OCR scan error:", err))
+        .finally(() => setIsScanningAi(false));
+
       // Switch to REVIEW mode
       setMode("REVIEW");
     } catch (err) {
@@ -309,6 +337,8 @@ export function SquareCameraModal({
     }
     setCapturedFile(null);
     setCapturedPreviewUrl(null);
+    setIsScanningAi(false);
+    setAiScanResult(null);
     setMode("CAMERA");
     if (videoRef.current) {
       videoRef.current.play().catch(console.error);
@@ -497,6 +527,49 @@ export function SquareCameraModal({
               1:1 Vuông
             </div>
           </div>
+
+          {/* AI Receipt Scanning Indicator Banner */}
+          {isScanningAi && (
+            <div className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl bg-blue-950/70 border border-blue-500/40 text-blue-200 text-xs animate-pulse select-none">
+              <Loader2 className="w-3.5 h-3.5 text-blue-400 animate-spin" />
+              <span>AI đang phân tích & đọc thông tin hóa đơn...</span>
+            </div>
+          )}
+
+          {/* AI Scan Result Preview Banner with Auto-Fill Action */}
+          {aiScanResult && !isScanningAi && (
+            <div className="w-full flex items-center justify-between gap-2 p-2.5 rounded-xl bg-gradient-to-r from-emerald-950/90 via-indigo-950/90 to-purple-950/90 border border-emerald-500/50 text-white text-xs shadow-lg animate-in fade-in slide-in-from-top-2 duration-200 select-none">
+              <div className="flex items-center gap-2 overflow-hidden">
+                <Sparkles className="w-4 h-4 text-emerald-400 shrink-0 animate-pulse" />
+                <div className="truncate text-left">
+                  <p className="font-bold text-emerald-300 truncate text-[11px]">
+                    ✨ AI nhận diện: {aiScanResult.description}
+                  </p>
+                  <p className="text-[10px] text-white/70 truncate">
+                    {aiScanResult.amount ? `${formatNumberVN(String(aiScanResult.amount))} ₫` : ""}
+                    {aiScanResult.merchant ? ` • ${aiScanResult.merchant}` : ""}
+                  </p>
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => {
+                  if (aiScanResult.amount) {
+                    setAmountInput(String(aiScanResult.amount));
+                  }
+                  if (aiScanResult.description) {
+                    setDescriptionInput(aiScanResult.description);
+                  }
+                  toast.success("Đã tự động điền thông tin từ hóa đơn!");
+                }}
+                className="h-7 text-[10px] font-bold bg-emerald-500 hover:bg-emerald-600 text-white px-2.5 rounded-lg shrink-0 cursor-pointer shadow-sm pointer-events-auto"
+              >
+                Áp dụng ngay
+              </Button>
+            </div>
+          )}
 
           {/* Fintech-Grade Quick-Fill Form Card */}
           <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-3.5 backdrop-blur-md space-y-3 shadow-xl select-text">

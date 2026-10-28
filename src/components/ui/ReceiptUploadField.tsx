@@ -98,6 +98,28 @@ export function ReceiptUploadField({
       return;
     }
 
+    // Trigger background AI OCR scan to pre-fill parent transaction form if data is extracted
+    const scanFormData = new FormData();
+    scanFormData.append("file", file);
+    fetch("/api/v1/ai/receipt-scan", {
+      method: "POST",
+      body: scanFormData,
+    })
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.data && (json.data.amount > 0 || json.data.description)) {
+          if (onQuickFill) {
+            onQuickFill({
+              amount: json.data.amount || undefined,
+              description: json.data.description || undefined,
+              date: json.data.date || undefined,
+            });
+            toast.info(`✨ AI đã tự động nhận diện: ${json.data.description}`);
+          }
+        }
+      })
+      .catch((err) => console.warn("Gallery receipt OCR error:", err));
+
     await uploadFile(file);
   };
 

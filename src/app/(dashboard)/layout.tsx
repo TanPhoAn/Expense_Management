@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { QuickAddModal } from "@/features/transactions/components/QuickAddModal";
 import { ChangePasswordModal } from "@/features/auth/components/ChangePasswordModal";
+import { FloatingAIChatbot } from "@/features/ai/components/FloatingAIChatbot";
 import { Category, User } from "@/types";
 import { formatVNDate, getVietnamTodayString } from "@/lib/utils/date";
 
@@ -200,6 +201,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         isOpen={isChangePasswordOpen}
         onClose={() => setIsChangePasswordOpen(false)}
       />
+
+      {/* Floating AI Chatbot Assistant */}
+      <FloatingAIChatbot />
     </div>
   );
 }
