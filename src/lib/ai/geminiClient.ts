@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI, Part } from "@google/generative-ai";
 import { Category } from "@/types";
 import {
   parseNaturalLanguageTransaction,
@@ -24,40 +24,78 @@ export interface AIReceiptScanResult {
 }
 
 /**
- * Initialize Gemini AI model if API key is present
+ * Prioritized list of Gemini models.
+ * Automatically tries available models in order.
  */
-function getGeminiModel(modelName = "gemini-1.5-flash") {
+const CANDIDATE_MODELS = [
+  "gemini-3.5-flash-lite",
+  "gemini-3.5-flash",
+  "gemini-2.5-flash",
+  "gemini-1.5-flash",
+];
+
+/**
+ * Strips markdown code fences (```json ... ```) from Gemini raw text.
+ */
+function cleanJsonText(raw: string): string {
+  let cleaned = raw.trim();
+  if (cleaned.startsWith("```json")) {
+    cleaned = cleaned.replace(/^```json\s*/i, "").replace(/```\s*$/, "");
+  } else if (cleaned.startsWith("```")) {
+    cleaned = cleaned.replace(/^```\s*/, "").replace(/```\s*$/, "");
+  }
+  return cleaned.trim();
+}
+
+/**
+ * Execute Gemini prompt with automatic model fallback across candidate models.
+ */
+async function generateContentWithFallback(
+  contents: string | Array<string | Part>
+): Promise<string | null> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey || apiKey === "your-gemini-api-key" || apiKey.trim() === "") {
     return null;
   }
+
   const genAI = new GoogleGenerativeAI(apiKey);
-  return genAI.getGenerativeModel({
-    model: modelName,
-    generationConfig: {
-      temperature: 0.2,
-      responseMimeType: "application/json",
-    },
-  });
+
+  for (const modelName of CANDIDATE_MODELS) {
+    try {
+      const model = genAI.getGenerativeModel({
+        model: modelName,
+        generationConfig: {
+          temperature: 0.2,
+          responseMimeType: "application/json",
+        },
+      });
+
+      const result = await model.generateContent(contents);
+      const text = result.response.text();
+      if (text && text.trim().length > 0) {
+        return text;
+      }
+    } catch (err: unknown) {
+      console.warn(`Gemini model [${modelName}] failed, trying next candidate:`, err instanceof Error ? err.message : err);
+    }
+  }
+
+  return null;
 }
 
 /**
- * Parse user chat message using Gemini 1.5 Flash, with automatic fallback to NLP rules.
+ * Parse user chat message using Gemini, with automatic fallback to NLP rules.
  */
 export async function parseChatMessage(
   message: string,
   clientDate: string,
   categories: Category[]
 ): Promise<AIChatResponse> {
-  const model = getGeminiModel();
+  const categoriesContext = categories
+    .map((c) => `- ID: "${c.id}", Tên: "${c.name}", Loại: "${c.type}"`)
+    .join("\n");
 
-  if (model) {
-    try {
-      const categoriesContext = categories
-        .map((c) => `- ID: "${c.id}", Tên: "${c.name}", Loại: "${c.type}"`)
-        .join("\n");
-
-      const prompt = `Bạn là trợ lý tài chính thông minh PocketFlow chuyên quản lý thu chi cá nhân cho người Việt Nam.
+  const prompt = `Bạn là trợ lý tài chính thông minh PocketFlow chuyên quản lý thu chi cá nhân cho người Việt Nam.
 Ngày hiện tại theo giờ Việt Nam: ${clientDate}.
 
 Danh mục sẵn có của người dùng:
@@ -66,13 +104,19 @@ ${categoriesContext}
 Hãy phân tích câu chat sau đây của người dùng:
 "${message}"
 
+Lưu ý cách nói tiền Việt Nam:
+- "40k", "40 ka", "40 cành" = 40000
+- "50 ngàn", "50 nghìn" = 50000
+- "1.5tr", "1,5 triệu", "1 củ 5" = 1500000
+- "2tr5" = 2500000
+
 Nhiệm vụ:
 1. Xác định ý định người dùng (action):
-   - "CREATE_TRANSACTION": Nếu người dùng muốn ghi nhận một khoản chi tiêu hoặc thu nhập (vd: "hôm nay ăn cơm gà 40k", "đổ xăng 50k", "lương về 15tr").
+   - "CREATE_TRANSACTION": Nếu người dùng muốn ghi nhận một khoản chi tiêu hoặc thu nhập (vd: "hôm nay ăn cơm gà 40 ka", "đổ xăng 50k", "lương về 15tr").
    - "GENERAL_CHAT": Nếu là lời chào, hỏi thăm thông thường hoặc không liên quan đến thu chi.
 2. Nếu là "CREATE_TRANSACTION":
    - "description": Tên món, dịch vụ hoặc nội dung chi tiêu rõ ràng, viết hoa chữ cái đầu (vd: "Ăn trưa cơm gà", "Đổ xăng", "Nhận lương tháng 10").
-   - "amount": Số tiền nguyên bản VND dạng integer (lưu ý: 40k = 40000, 50 ngàn = 50000, 1.5tr = 1500000).
+   - "amount": Số tiền nguyên bản VND dạng integer (lưu ý: 40 ka = 40000, 60ka = 60000, 50 ngàn = 50000, 1.5tr = 1500000).
    - "type": "EXPENSE" (chi tiêu) hoặc "INCOME" (thu nhập).
    - "categoryId": Chọn ID danh mục khớp nhất từ danh sách trên (phải đúng type). Nếu không có, để null.
    - "categoryName": Tên danh mục đã chọn.
@@ -95,9 +139,12 @@ Trả về ĐÚNG cấu trúc JSON sau (không kèm markdown ngoài):
   "replyMessage": "Đã lưu khoản chi Ăn trưa cơm gà với số tiền 40.000 ₫ vào danh mục Ăn uống!"
 }`;
 
-      const result = await model.generateContent(prompt);
-      const text = result.response.text();
-      const parsed = JSON.parse(text);
+  const rawText = await generateContentWithFallback(prompt);
+
+  if (rawText) {
+    try {
+      const cleanJson = cleanJsonText(rawText);
+      const parsed = JSON.parse(cleanJson);
 
       if (parsed.action === "CREATE_TRANSACTION" && parsed.transaction?.amount > 0) {
         return {
@@ -117,14 +164,16 @@ Trả về ĐÚNG cấu trúc JSON sau (không kèm markdown ngoài):
         };
       }
 
-      return {
-        action: parsed.action || "GENERAL_CHAT",
-        replyMessage:
-          parsed.replyMessage ||
-          "Mình đã nghe! Bạn muốn ghi nhận chi tiêu gì hôm nay (ví dụ: 'Ăn trưa 40k')?",
-      };
-    } catch (err) {
-      console.warn("Gemini API call failed, falling back to deterministic NLP parser:", err);
+      if (parsed.action === "GENERAL_CHAT") {
+        return {
+          action: "GENERAL_CHAT",
+          replyMessage:
+            parsed.replyMessage ||
+            "Mình đã nghe! Bạn muốn ghi nhận chi tiêu gì hôm nay (ví dụ: 'Ăn trưa 40k')?",
+        };
+      }
+    } catch (parseErr) {
+      console.warn("JSON parse error from Gemini text:", parseErr, rawText);
     }
   }
 
@@ -157,13 +206,10 @@ export async function scanReceiptWithAI(
   categories: Category[] = [],
   clientDate?: string
 ): Promise<AIReceiptScanResult> {
-  const model = getGeminiModel();
   const today = clientDate || new Date().toISOString().split("T")[0];
+  const categoriesContext = categories.map((c) => c.name).join(", ");
 
-  if (model) {
-    try {
-      const categoriesContext = categories.map((c) => c.name).join(", ");
-      const prompt = `Bạn là chuyên gia phân tích hóa đơn, phiếu tính tiền, biên lai thanh toán tại Việt Nam.
+  const prompt = `Bạn là chuyên gia phân tích hóa đơn, phiếu tính tiền, biên lai thanh toán tại Việt Nam.
 Ngày hiện tại: ${today}.
 Các danh mục có sẵn: ${categoriesContext}.
 
@@ -187,18 +233,19 @@ Trả về duy nhất định dạng JSON:
   ]
 }`;
 
-      // Prepare image data part for Gemini Multimodal
-      const imagePart = {
-        inlineData: {
-          data: imageBase64,
-          mimeType,
-        },
-      };
+  const imagePart = {
+    inlineData: {
+      data: imageBase64,
+      mimeType,
+    },
+  };
 
-      const result = await model.generateContent([prompt, imagePart]);
-      const text = result.response.text();
-      const parsed = JSON.parse(text);
+  const rawText = await generateContentWithFallback([prompt, imagePart]);
 
+  if (rawText) {
+    try {
+      const cleanJson = cleanJsonText(rawText);
+      const parsed = JSON.parse(cleanJson);
       const cleanedAmount = cleanOcrAmount(parsed.amount) || 0;
 
       return {
@@ -210,8 +257,8 @@ Trả về duy nhất định dạng JSON:
         items: Array.isArray(parsed.items) ? parsed.items : undefined,
         confidence: cleanedAmount > 0 ? 0.95 : 0.6,
       };
-    } catch (err) {
-      console.warn("Gemini Vision OCR failed, using fallback:", err);
+    } catch (parseErr) {
+      console.warn("JSON parse error from Gemini Vision OCR:", parseErr, rawText);
     }
   }
 

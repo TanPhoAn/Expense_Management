@@ -36,8 +36,8 @@ export function parseVietnameseCurrency(text: string): number | null {
   if (!text) return null;
   const clean = text.trim();
 
-  // Pattern A: "2tr5", "2tr500", "1tr2"
-  const trSubMatch = clean.match(/(?:^|[^\d.,])(\d+)\s*(?:tr|triệu)\s*(\d{1,3})(?:[^\d]|$)/i);
+  // Pattern A: "2tr5", "2tr500", "1tr2", "2 củ 5"
+  const trSubMatch = clean.match(/(?:^|[^\d.,])(\d+)\s*(?:tr|triệu|củ)\s*(\d{1,3})(?:[^\d]|$)/i);
   if (trSubMatch) {
     const main = parseInt(trSubMatch[1], 10);
     const subStr = trSubMatch[2];
@@ -45,8 +45,8 @@ export function parseVietnameseCurrency(text: string): number | null {
     return main * 1_000_000 + sub * 1_000;
   }
 
-  // Pattern B: Millions with decimal (e.g., "1.5tr", "1,5 triệu", "2 triệu", "5 tr")
-  const trMatch = clean.match(/(?:^|[^\d])(\d+(?:[.,]\d+)?)\s*(?:tr|triệu)(?:[^\w]|$)/i);
+  // Pattern B: Millions with decimal (e.g., "1.5tr", "1,5 triệu", "2 triệu", "5 tr", "2 củ", "1 chai")
+  const trMatch = clean.match(/(?:^|[^\d])(\d+(?:[.,]\d+)?)\s*(?:tr|triệu|củ|chai)(?:[^\w]|$)/i);
   if (trMatch) {
     const num = parseFloat(trMatch[1].replace(",", "."));
     if (!isNaN(num) && num > 0) {
@@ -54,12 +54,21 @@ export function parseVietnameseCurrency(text: string): number | null {
     }
   }
 
-  // Pattern C: Thousands shorthand: "40k", "40 k", "50 ngàn", "50 nghìn", "100 ngàn"
-  const kMatch = clean.match(/(?:^|[^\d])(\d+(?:[.,]\d+)?)\s*(?:k|ngàn|nghìn)(?:[^\w]|$)/i);
+  // Pattern C: Thousands shorthand: "40k", "40 ka", "40ka", "50 ngàn", "50 nghìn", "100 ngàn", "50 cành"
+  const kMatch = clean.match(/(?:^|[^\d])(\d+(?:[.,]\d+)?)\s*(?:k|ka|cành|ngàn|nghìn)(?:[^\w]|$)/i);
   if (kMatch) {
     const num = parseFloat(kMatch[1].replace(",", "."));
     if (!isNaN(num) && num > 0) {
       return Math.round(num * 1_000);
+    }
+  }
+
+  // Pattern C2: Slang hundred-thousands: "2 lít", "1 xị" (1 lít = 100,000)
+  const litMatch = clean.match(/(?:^|[^\d])(\d+(?:[.,]\d+)?)\s*(?:lít|xị)(?:[^\w]|$)/i);
+  if (litMatch) {
+    const num = parseFloat(litMatch[1].replace(",", "."));
+    if (!isNaN(num) && num > 0) {
+      return Math.round(num * 100_000);
     }
   }
 
@@ -232,8 +241,8 @@ export function extractCleanDescription(text: string): string {
   cleaned = cleaned.replace(dateRegex, " ");
   cleaned = cleaned.replace(/(?:ngày\s+)?\b\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?\b/gi, " ");
 
-  // Remove currency tokens (e.g. 40k, 50 ngàn, 1.5tr, 120.000đ)
-  cleaned = cleaned.replace(/\b\d+(?:[.,]\d+)?\s*(?:k|ngàn|nghìn|tr|triệu|đ|vnd|đồng)\b/gi, " ");
+  // Remove currency tokens (e.g. 40k, 40 ka, 50 ngàn, 1.5tr, 120.000đ)
+  cleaned = cleaned.replace(/\b\d+(?:[.,]\d+)?\s*(?:k|ka|cành|củ|chai|lít|xị|ngàn|nghìn|tr|triệu|đ|vnd|đồng)\b/gi, " ");
   cleaned = cleaned.replace(/\b\d{1,3}(?:[.,]\d{3})+\b/g, " ");
   cleaned = cleaned.replace(/\b\d{4,12}\b/g, " ");
 
