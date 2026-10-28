@@ -43,7 +43,7 @@ interface SquareCameraModalProps {
 
 /**
  * Convert a base64 data URL to a File object.
- * Uses synchronous atob + Uint8Array — works reliably on all iOS Safari versions.
+ * Uses synchronous atob + Uint8Array with fallback for iOS Safari.
  */
 function dataURLtoFile(dataURL: string, filename: string): File {
   const [header, base64Data] = dataURL.split(",");
@@ -54,7 +54,16 @@ function dataURLtoFile(dataURL: string, filename: string): File {
   for (let i = 0; i < binaryString.length; i++) {
     bytes[i] = binaryString.charCodeAt(i);
   }
-  return new File([bytes], filename, { type: mime, lastModified: Date.now() });
+  try {
+    return new File([bytes], filename, { type: mime, lastModified: Date.now() });
+  } catch {
+    // Fallback for Safari iOS where File constructor may throw
+    const blob = new Blob([bytes], { type: mime });
+    return Object.assign(blob, {
+      name: filename,
+      lastModified: Date.now(),
+    }) as File;
+  }
 }
 
 export function SquareCameraModal({
@@ -83,22 +92,11 @@ export function SquareCameraModal({
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  // Track preview URL via ref so cleanup functions always have the latest value
-  const previewUrlRef = useRef<string | null>(null);
 
   // SSR-safe mounting check for React Portal
   useEffect(() => {
     setMounted(true);
     return () => setMounted(false);
-  }, []);
-
-  // Helper: revoke current preview URL and clear state
-  const revokePreview = useCallback(() => {
-    if (previewUrlRef.current) {
-      URL.revokeObjectURL(previewUrlRef.current);
-      previewUrlRef.current = null;
-    }
-    setCapturedPreviewUrl(null);
   }, []);
 
   // Clean up media stream
@@ -168,7 +166,7 @@ export function SquareCameraModal({
     if (isOpen) {
       setMode("CAMERA");
       setCapturedFile(null);
-      revokePreview();
+      setCapturedPreviewUrl(null);
       setAmountInput(initialAmount ? String(initialAmount) : "");
       setDescriptionInput(initialDescription || "");
       setIsSubmitting(false);
@@ -179,16 +177,12 @@ export function SquareCameraModal({
       startCamera();
     } else {
       stopCamera();
-      revokePreview();
+      setCapturedFile(null);
+      setCapturedPreviewUrl(null);
     }
 
     return () => {
       stopCamera();
-      // Use ref (always current) instead of stale closure for cleanup
-      if (previewUrlRef.current) {
-        URL.revokeObjectURL(previewUrlRef.current);
-        previewUrlRef.current = null;
-      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
@@ -201,12 +195,29 @@ export function SquareCameraModal({
   }, [facingMode, isOpen, mode, startCamera]);
 
   // Handle Switch Camera
-  const handleToggleCamera = () => {
+  const handleToggleCamera = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     setFacingMode((prev) => (prev === "environment" ? "user" : "environment"));
   };
 
+  // Close modal safely
+  const handleClose = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    stopCamera();
+    onClose();
+  };
+
   // Capture square frame and transition to REVIEW mode
-  const handleCapture = () => {
+  const handleCapture = (e?: React.MouseEvent | React.TouchEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
     if (!videoRef.current || isLoadingCamera) return;
 
     const video = videoRef.current;
@@ -254,7 +265,7 @@ export function SquareCameraModal({
 
       ctx.drawImage(video, sx, sy, size, size, 0, 0, targetSize, targetSize);
 
-      // Use toDataURL (synchronous, much more reliable on iOS Safari than toBlob)
+      // Use toDataURL (synchronous, reliable on iOS Safari)
       const dataURL = canvas.toDataURL("image/jpeg", 0.85);
 
       if (!dataURL || dataURL === "data:,") {
@@ -263,14 +274,14 @@ export function SquareCameraModal({
       }
 
       const file = dataURLtoFile(dataURL, `receipt_${Date.now()}.jpg`);
-      const previewUrl = dataURL; // Use data URL directly as preview (no object URL needed)
+      const previewUrl = dataURL;
 
       setCapturedFile(file);
       setCapturedPreviewUrl(previewUrl);
-      previewUrlRef.current = null; // data URLs don't need revoking
 
-      // Turn off camera stream to save battery
-      stopCamera();
+      // Pause video to freeze feed without unbinding stream tracks prematurely
+      video.pause();
+
       // Switch to REVIEW mode
       setMode("REVIEW");
     } catch (err) {
@@ -279,17 +290,22 @@ export function SquareCameraModal({
     }
   };
 
-  // Retake photo: discard preview and restart camera
-  const handleRetake = () => {
-    revokePreview();
+  // Retake photo: discard preview and resume live camera
+  const handleRetake = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     setCapturedFile(null);
     setCapturedPreviewUrl(null);
     setMode("CAMERA");
-    // startCamera will be triggered by the useEffect watching [facingMode, isOpen, mode, startCamera]
+    if (videoRef.current) {
+      videoRef.current.play().catch(console.error);
+    }
   };
 
   // Confirm photo and quick-fill inputs
-  const handleConfirm = async () => {
+  const handleConfirm = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     if (!capturedFile) return;
 
     setIsSubmitting(true);
@@ -302,7 +318,7 @@ export function SquareCameraModal({
         date: transactionDate,
       });
 
-      revokePreview();
+      stopCamera();
       onClose();
     } catch (err) {
       console.error("Confirm error:", err);
@@ -319,6 +335,9 @@ export function SquareCameraModal({
 
   const modalContent = (
     <div
+      onPointerDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
+      onTouchStart={(e) => e.stopPropagation()}
       className="fixed inset-0 z-[100] bg-black text-white w-screen h-[100dvh] min-h-[100dvh] flex flex-col justify-between overflow-y-auto overflow-x-hidden p-4 sm:p-6 select-none animate-in fade-in duration-200"
       style={{
         paddingTop: "max(1rem, env(safe-area-inset-top))",
@@ -331,7 +350,7 @@ export function SquareCameraModal({
           type="button"
           variant="ghost"
           size="icon"
-          onClick={onClose}
+          onClick={handleClose}
           disabled={isSubmitting}
           className="text-white/80 hover:text-white hover:bg-white/10 rounded-full w-10 h-10"
         >
@@ -486,6 +505,12 @@ export function SquareCameraModal({
                     const clean = sanitizeCurrencyInput(e.target.value);
                     setAmountInput(clean);
                   }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }
+                  }}
                   placeholder="0"
                   className={`w-full text-center text-3xl font-extrabold tracking-tight bg-transparent border-b-2 py-1 outline-none transition-colors placeholder:text-white/20 ${
                     isIncome
@@ -508,6 +533,12 @@ export function SquareCameraModal({
                 type="text"
                 value={descriptionInput}
                 onChange={(e) => setDescriptionInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }
+                }}
                 placeholder="Nhập mô tả (vd: Ăn trưa Highland, Đổ xăng...)"
                 className="w-full bg-white/10 border border-white/15 focus:border-primary rounded-xl px-3 py-2 text-xs text-white placeholder:text-white/40 outline-none transition-all"
               />
@@ -524,6 +555,7 @@ export function SquareCameraModal({
             <button
               type="button"
               onClick={handleCapture}
+              onPointerDown={(e) => e.stopPropagation()}
               disabled={isLoadingCamera || !!cameraError}
               className={`group relative w-20 h-20 rounded-full border-4 flex items-center justify-center p-1.5 transition-transform active:scale-90 disabled:opacity-50 disabled:pointer-events-none ${
                 isIncome
@@ -542,6 +574,7 @@ export function SquareCameraModal({
             <button
               type="button"
               onClick={handleRetake}
+              onPointerDown={(e) => e.stopPropagation()}
               disabled={isSubmitting}
               className="flex-1 h-12 rounded-xl bg-rose-500/15 border border-rose-500/40 text-rose-400 hover:bg-rose-500 hover:text-white flex items-center justify-center gap-2 font-semibold text-xs transition-all active:scale-95 disabled:opacity-50"
               title="Hủy bỏ và chụp lại"
@@ -554,6 +587,7 @@ export function SquareCameraModal({
             <button
               type="button"
               onClick={handleConfirm}
+              onPointerDown={(e) => e.stopPropagation()}
               disabled={isSubmitting}
               className="flex-1 h-12 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center gap-2 font-semibold text-xs shadow-lg shadow-emerald-500/30 transition-all active:scale-95 disabled:opacity-50"
               title="Xác nhận sử dụng ảnh và thông tin"
