@@ -217,10 +217,7 @@ export function MarketPricesWidget() {
             <div className="grid grid-cols-2 gap-2 bg-background/60 dark:bg-card/40 border border-border/50 rounded-xl p-3 backdrop-blur-xs">
               {/* Xăng E10 RON 95-V (Mặt hàng chính) */}
               <div>
-                <div className="flex items-center gap-1">
-                  <p className="text-[11px] font-semibold text-foreground truncate">E10 RON 95-V</p>
-                  <span className="text-[9px] bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 px-1 rounded font-medium shrink-0">Euro 5</span>
-                </div>
+                <p className="text-[11px] font-semibold text-foreground truncate">E10 RON 95-V</p>
                 <p className="text-lg sm:text-xl font-extrabold text-emerald-600 dark:text-emerald-400 tracking-tight mt-0.5">
                   {fuel?.ron95V ? `${formatVND(fuel.ron95V.priceZone1)}/lít` : (fuel ? `${formatVND(25710)}/lít` : "—")}
                 </p>
@@ -228,10 +225,7 @@ export function MarketPricesWidget() {
 
               {/* Xăng E10 RON 95-III (Phổ thông) */}
               <div className="border-l border-border/60 pl-3">
-                <div className="flex items-center gap-1">
-                  <p className="text-[11px] font-semibold text-foreground truncate">E10 RON 95-III</p>
-                  <span className="text-[9px] bg-muted px-1 rounded text-muted-foreground shrink-0">Euro 3</span>
-                </div>
+                <p className="text-[11px] font-semibold text-foreground truncate">E10 RON 95-III</p>
                 <p className="text-base sm:text-lg font-bold text-foreground tracking-tight mt-0.5">
                   {fuel ? `${formatVND(fuel.priceZone1)}/lít` : "—"}
                 </p>
