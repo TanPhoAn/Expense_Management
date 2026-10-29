@@ -16,6 +16,7 @@ import {
   Calendar,
   X,
   Plus,
+  Image as ImageIcon,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -590,19 +591,35 @@ export default function TransactionsPage() {
                   >
                     {/* Left: Avatar with CategoryIcon & optional Receipt thumbnail */}
                     <div className="relative shrink-0">
-                      <div
-                        className="w-11 h-11 rounded-2xl flex items-center justify-center shadow-xs"
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (tx.receiptUrl) {
+                            setLightboxData({
+                              imageUrl: tx.receiptUrl,
+                              description: tx.description,
+                              amount: tx.amount,
+                              type: tx.type,
+                              categoryName: tx.category?.name,
+                              transactionDate: tx.transactionDate,
+                            });
+                          }
+                        }}
+                        className={`w-11 h-11 rounded-2xl flex items-center justify-center shadow-xs transition-transform ${
+                          tx.receiptUrl ? "cursor-pointer active:scale-95 ring-2 ring-primary/40 ring-offset-1 ring-offset-background" : ""
+                        }`}
                         style={{
                           backgroundColor: `${tx.category?.color || "#64748b"}20`,
                           color: tx.category?.color || "#64748b",
                         }}
+                        title={tx.receiptUrl ? "Nhấn xem ảnh hóa đơn" : undefined}
                       >
                         <CategoryIcon
                           iconName={tx.category?.icon}
                           categoryName={tx.category?.name}
                           className="w-5 h-5"
                         />
-                      </div>
+                      </button>
 
                       {/* Receipt Thumbnail Indicator (if uploaded) */}
                       {tx.receiptUrl && (
@@ -618,8 +635,8 @@ export default function TransactionsPage() {
                               transactionDate: tx.transactionDate,
                             })
                           }
-                          className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full overflow-hidden border-2 border-background shadow-xs hover:scale-110 transition-transform cursor-pointer"
-                          title="Nhấn để xem hóa đơn gốc"
+                          className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full overflow-hidden border-2 border-background shadow-xs hover:scale-110 active:scale-95 transition-transform cursor-pointer"
+                          title="Nhấn xem ảnh hóa đơn"
                         >
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
@@ -631,7 +648,7 @@ export default function TransactionsPage() {
                       )}
                     </div>
 
-                    {/* Middle: Description, Category pill, Date, Note */}
+                    {/* Middle: Description, Category pill, Date, Note, and Direct Receipt Button */}
                     <div className="flex-1 min-w-0">
                       <div className="font-semibold text-sm text-foreground truncate">
                         {tx.description}
@@ -656,9 +673,32 @@ export default function TransactionsPage() {
                           {tx.note}
                         </div>
                       )}
+                      {/* Direct button to open receipt popup on mobile */}
+                      {tx.receiptUrl && (
+                        <div className="mt-1">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setLightboxData({
+                                imageUrl: tx.receiptUrl!,
+                                description: tx.description,
+                                amount: tx.amount,
+                                type: tx.type,
+                                categoryName: tx.category?.name,
+                                transactionDate: tx.transactionDate,
+                              })
+                            }
+                            className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-primary/10 text-primary hover:bg-primary/20 active:scale-95 transition-all cursor-pointer border border-primary/20 shadow-2xs"
+                            title="Xem ảnh hóa đơn"
+                          >
+                            <ImageIcon className="w-3 h-3 text-primary" />
+                            <span>Xem ảnh hóa đơn</span>
+                          </button>
+                        </div>
+                      )}
                     </div>
 
-                    {/* Right: Amount & Actions */}
+                    {/* Right: Amount & Actions (with direct image button) */}
                     <div className="text-right shrink-0 flex flex-col items-end gap-1">
                       <div
                         className={`font-mono tabular-nums text-sm font-bold ${
@@ -672,6 +712,26 @@ export default function TransactionsPage() {
                       </div>
 
                       <div className="flex items-center gap-1">
+                        {tx.receiptUrl && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() =>
+                              setLightboxData({
+                                imageUrl: tx.receiptUrl!,
+                                description: tx.description,
+                                amount: tx.amount,
+                                type: tx.type,
+                                categoryName: tx.category?.name,
+                                transactionDate: tx.transactionDate,
+                              })
+                            }
+                            className="w-7 h-7 text-primary hover:text-primary hover:bg-primary/15 bg-primary/10 rounded-lg cursor-pointer"
+                            title="Xem ảnh hóa đơn"
+                          >
+                            <ImageIcon className="w-3.5 h-3.5 text-primary" />
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="icon"

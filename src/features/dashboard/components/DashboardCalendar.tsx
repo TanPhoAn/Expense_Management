@@ -14,6 +14,7 @@ import {
   ZoomIn,
   TrendingUp,
   TrendingDown,
+  Image as ImageIcon,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -517,6 +518,30 @@ export function DashboardCalendar({
                         <p className="text-[11px] text-muted-foreground truncate">
                           {tx.category?.name || "Chưa phân loại"}
                         </p>
+                        {tx.receiptUrl && (
+                          <div className="mt-0.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (onPreviewReceipt) {
+                                  onPreviewReceipt({
+                                    imageUrl: tx.receiptUrl!,
+                                    description: tx.description,
+                                    amount: tx.amount,
+                                    type: tx.type,
+                                    categoryName: tx.category?.name,
+                                    transactionDate: tx.transactionDate,
+                                  });
+                                }
+                              }}
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-primary/10 text-primary hover:bg-primary/20 active:scale-95 transition-all cursor-pointer border border-primary/20"
+                              title="Xem ảnh hóa đơn"
+                            >
+                              <ImageIcon className="w-2.5 h-2.5 text-primary" />
+                              <span>Xem ảnh</span>
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
 

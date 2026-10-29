@@ -16,6 +16,7 @@ import {
   Eye,
   EyeOff,
   RotateCcw,
+  Image as ImageIcon,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -520,6 +521,28 @@ export default function DashboardPage() {
                             <span>•</span>
                             <span className="shrink-0">{formatVNDate(tx.transactionDate, "short")}</span>
                           </div>
+                          {tx.receiptUrl && (
+                            <div className="mt-1">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setLightboxData({
+                                    imageUrl: tx.receiptUrl!,
+                                    description: tx.description,
+                                    amount: tx.amount,
+                                    type: tx.type,
+                                    categoryName: tx.category?.name,
+                                    transactionDate: tx.transactionDate,
+                                  })
+                                }
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-primary/10 text-primary hover:bg-primary/20 active:scale-95 transition-all cursor-pointer border border-primary/20"
+                                title="Xem ảnh hóa đơn"
+                              >
+                                <ImageIcon className="w-2.5 h-2.5 text-primary" />
+                                <span>Xem ảnh hóa đơn</span>
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
 
