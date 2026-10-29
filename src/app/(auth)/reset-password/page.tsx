@@ -10,7 +10,9 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, ArrowLeft, CheckCircle2 } from "lucide-react";
+import { PasswordInput } from "@/features/auth/components/PasswordInput";
+import { PasswordStrengthMeter } from "@/features/auth/components/PasswordStrengthMeter";
+import { Loader2, ArrowLeft, CheckCircle2, KeyRound } from "lucide-react";
 
 function ResetPasswordForm() {
   const router = useRouter();
@@ -24,6 +26,7 @@ function ResetPasswordForm() {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm<ResetPasswordInput>({
     resolver: zodResolver(resetPasswordSchema),
@@ -34,6 +37,8 @@ function ResetPasswordForm() {
       confirmPassword: "",
     },
   });
+
+  const watchedNewPassword = watch("newPassword");
 
   const onSubmit = async (data: ResetPasswordInput) => {
     setIsLoading(true);
@@ -67,99 +72,113 @@ function ResetPasswordForm() {
   };
 
   return (
-    <Card className="shadow-lg border-slate-200 dark:border-slate-800">
-      <CardHeader className="space-y-1">
-        <CardTitle className="text-xl font-bold">Đặt lại mật khẩu mới</CardTitle>
-        <CardDescription>
+    <Card className="shadow-xl border-border/80 bg-card/80 backdrop-blur-md rounded-2xl">
+      <CardHeader className="space-y-1.5 pb-4">
+        <CardTitle className="text-xl font-bold tracking-tight">Đặt lại mật khẩu mới</CardTitle>
+        <CardDescription className="text-xs">
           Nhập mã OTP 6 số đã được gửi qua email và thiết lập mật khẩu mới
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {errorMsg && (
-            <div className="p-3 text-xs font-medium rounded-lg bg-rose-50 text-rose-700 border border-rose-200">
+            <div className="p-3 text-xs font-medium rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900 animate-in fade-in-0 duration-200">
               {errorMsg}
             </div>
           )}
 
           {successMsg && (
-            <div className="p-3 text-xs font-medium rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+            <div className="p-3 text-xs font-medium rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900 flex items-center gap-2 animate-in fade-in-0 duration-200">
+              <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
               <span>{successMsg} Đang chuyển đến Đăng nhập...</span>
             </div>
           )}
 
-          <div className="space-y-1">
-            <Label htmlFor="email">Email</Label>
+          <div className="space-y-1.5">
+            <Label htmlFor="email" className="text-xs font-semibold">Email tài khoản</Label>
             <Input
               id="email"
               type="email"
               placeholder="tenban@example.com"
               disabled={isLoading || !!successMsg}
+              className="text-base sm:text-xs"
               {...register("email")}
             />
-            {errors.email && <p className="text-xs text-rose-600">{errors.email.message}</p>}
+            {errors.email && <p className="text-xs text-rose-600 dark:text-rose-400">{errors.email.message}</p>}
           </div>
 
-          <div className="space-y-1">
-            <Label htmlFor="code">Mã xác thực OTP (6 chữ số)</Label>
+          <div className="space-y-1.5">
+            <Label htmlFor="code" className="text-xs font-semibold">Mã xác thực (OTP 6 số)</Label>
             <Input
               id="code"
-              type="text"
-              maxLength={6}
               placeholder="123456"
-              className="tracking-widest font-mono text-center text-lg"
+              maxLength={6}
+              inputMode="numeric"
+              pattern="[0-9]*"
+              className="tracking-widest font-mono text-center text-lg sm:text-base font-bold"
               disabled={isLoading || !!successMsg}
               {...register("code")}
             />
-            {errors.code && <p className="text-xs text-rose-600">{errors.code.message}</p>}
+            {errors.code && <p className="text-xs text-rose-600 dark:text-rose-400">{errors.code.message}</p>}
           </div>
 
-          <div className="space-y-1">
-            <Label htmlFor="newPassword">Mật khẩu mới</Label>
-            <Input
+          <div className="space-y-1.5">
+            <Label htmlFor="newPassword" className="text-xs font-semibold">
+              Mật khẩu mới (tối thiểu 6 ký tự)
+            </Label>
+            <PasswordInput
               id="newPassword"
-              type="password"
-              placeholder="Ít nhất 6 ký tự"
+              placeholder="••••••••"
               disabled={isLoading || !!successMsg}
               {...register("newPassword")}
             />
-            {errors.newPassword && <p className="text-xs text-rose-600">{errors.newPassword.message}</p>}
+            {errors.newPassword && (
+              <p className="text-xs text-rose-600 dark:text-rose-400">{errors.newPassword.message}</p>
+            )}
+
+            {/* Real-time Password Strength Meter */}
+            <PasswordStrengthMeter password={watchedNewPassword} />
           </div>
 
-          <div className="space-y-1">
-            <Label htmlFor="confirmPassword">Xác nhận mật khẩu mới</Label>
-            <Input
+          <div className="space-y-1.5">
+            <Label htmlFor="confirmPassword" className="text-xs font-semibold">Xác nhận mật khẩu mới</Label>
+            <PasswordInput
               id="confirmPassword"
-              type="password"
-              placeholder="Nhập lại mật khẩu mới"
+              placeholder="••••••••"
               disabled={isLoading || !!successMsg}
               {...register("confirmPassword")}
             />
             {errors.confirmPassword && (
-              <p className="text-xs text-rose-600">{errors.confirmPassword.message}</p>
+              <p className="text-xs text-rose-600 dark:text-rose-400">{errors.confirmPassword.message}</p>
             )}
           </div>
 
-          <Button type="submit" className="w-full mt-2" disabled={isLoading || !!successMsg}>
+          <Button
+            type="submit"
+            className="w-full mt-2 font-semibold shadow-xs gap-1.5"
+            disabled={isLoading || !!successMsg}
+          >
             {isLoading ? (
               <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Đang xử lý...
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Đang xử lý...</span>
               </>
             ) : (
-              "Xác nhận đặt lại mật khẩu"
+              <>
+                <span>Xác nhận đổi mật khẩu</span>
+                <KeyRound className="w-4 h-4" />
+              </>
             )}
           </Button>
         </form>
       </CardContent>
-      <CardFooter className="flex justify-between border-t py-4 text-xs text-muted-foreground">
-        <Link href="/forgot-password" className="text-muted-foreground hover:underline">
-          Gửi lại mã OTP?
-        </Link>
-        <Link href="/login" className="flex items-center gap-1 font-semibold text-primary hover:underline">
+      <CardFooter className="flex justify-center border-t border-border/50 pt-4 pb-4">
+        <Link
+          href="/login"
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground font-medium transition-colors"
+        >
           <ArrowLeft className="w-3.5 h-3.5" />
-          Đăng nhập
+          <span>Quay lại trang Đăng nhập</span>
         </Link>
       </CardFooter>
     </Card>
@@ -170,9 +189,10 @@ export default function ResetPasswordPage() {
   return (
     <Suspense
       fallback={
-        <div className="p-8 text-center text-sm text-muted-foreground">
+        <Card className="p-8 text-center text-sm text-muted-foreground">
+          <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-primary" />
           Đang tải trang đặt lại mật khẩu...
-        </div>
+        </Card>
       }
     >
       <ResetPasswordForm />

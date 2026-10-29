@@ -10,7 +10,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, ArrowLeft, MailCheck } from "lucide-react";
+import { Loader2, ArrowLeft, MailCheck, Send } from "lucide-react";
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
@@ -59,57 +59,69 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <Card className="shadow-lg border-slate-200 dark:border-slate-800">
-      <CardHeader className="space-y-1">
-        <CardTitle className="text-xl font-bold">Quên mật khẩu</CardTitle>
-        <CardDescription>
-          Nhập địa chỉ email đăng ký để nhận mã xác thực (OTP) đặt lại mật khẩu
+    <Card className="shadow-xl border-border/80 bg-card/80 backdrop-blur-md rounded-2xl">
+      <CardHeader className="space-y-1.5 pb-4">
+        <CardTitle className="text-xl font-bold tracking-tight">Quên mật khẩu</CardTitle>
+        <CardDescription className="text-xs">
+          Nhập địa chỉ email đã đăng ký để nhận mã OTP khôi phục quyền truy cập
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {errorMsg && (
-            <div className="p-3 text-xs font-medium rounded-lg bg-rose-50 text-rose-700 border border-rose-200">
+            <div className="p-3 text-xs font-medium rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900 animate-in fade-in-0 duration-200">
               {errorMsg}
             </div>
           )}
 
           {successMsg && (
-            <div className="p-3 text-xs font-medium rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-2">
-              <MailCheck className="w-4 h-4 flex-shrink-0" />
+            <div className="p-3 text-xs font-medium rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900 flex items-center gap-2 animate-in fade-in-0 duration-200">
+              <MailCheck className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
               <span>{successMsg} Đang chuyển trang...</span>
             </div>
           )}
 
-          <div className="space-y-1">
-            <Label htmlFor="email">Email tài khoản</Label>
+          <div className="space-y-1.5">
+            <Label htmlFor="email" className="text-xs font-semibold">Email tài khoản</Label>
             <Input
               id="email"
               type="email"
               placeholder="tenban@example.com"
               autoComplete="email"
+              inputMode="email"
               disabled={isLoading || !!successMsg}
+              className="text-base sm:text-xs"
               {...register("email")}
             />
-            {errors.email && <p className="text-xs text-rose-600">{errors.email.message}</p>}
+            {errors.email && <p className="text-xs text-rose-600 dark:text-rose-400">{errors.email.message}</p>}
           </div>
 
-          <Button type="submit" className="w-full mt-2" disabled={isLoading || !!successMsg}>
+          <Button
+            type="submit"
+            className="w-full mt-2 font-semibold shadow-xs gap-1.5"
+            disabled={isLoading || !!successMsg}
+          >
             {isLoading ? (
               <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Đang gửi mã...
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Đang gửi mã OTP...</span>
               </>
             ) : (
-              "Gửi mã xác thực OTP"
+              <>
+                <span>Gửi mã xác nhận</span>
+                <Send className="w-3.5 h-3.5" />
+              </>
             )}
           </Button>
         </form>
       </CardContent>
-      <CardFooter className="flex justify-center border-t py-4 text-xs text-muted-foreground">
-        <Link href="/login" className="flex items-center gap-1 font-semibold text-primary hover:underline">
+      <CardFooter className="flex justify-center border-t border-border/50 pt-4 pb-4">
+        <Link
+          href="/login"
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground font-medium transition-colors"
+        >
           <ArrowLeft className="w-3.5 h-3.5" />
-          Quay lại Đăng nhập
+          <span>Quay lại trang Đăng nhập</span>
         </Link>
       </CardFooter>
     </Card>

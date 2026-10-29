@@ -10,7 +10,8 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2 } from "lucide-react";
+import { PasswordInput } from "@/features/auth/components/PasswordInput";
+import { Loader2, ArrowRight } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -52,68 +53,76 @@ export default function LoginPage() {
   };
 
   return (
-    <Card className="shadow-lg border-slate-200 dark:border-slate-800">
-      <CardHeader className="space-y-1">
-        <CardTitle className="text-xl font-bold">Đăng nhập tài khoản</CardTitle>
-        <CardDescription>Nhập thông tin xác thực để truy cập bảng điều khiển PocketFlow</CardDescription>
+    <Card className="shadow-xl border-border/80 bg-card/80 backdrop-blur-md rounded-2xl">
+      <CardHeader className="space-y-1.5 pb-4">
+        <CardTitle className="text-xl font-bold tracking-tight">Đăng nhập tài khoản</CardTitle>
+        <CardDescription className="text-xs">
+          Nhập thông tin xác thực để truy cập bảng điều khiển PocketFlow
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {errorMsg && (
-            <div className="p-3 text-xs font-medium rounded-lg bg-rose-50 text-rose-700 border border-rose-200">
+            <div className="p-3 text-xs font-medium rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900 animate-in fade-in-0 duration-200">
               {errorMsg}
             </div>
           )}
 
-          <div className="space-y-1">
-            <Label htmlFor="email">Email</Label>
+          <div className="space-y-1.5">
+            <Label htmlFor="email" className="text-xs font-semibold">Email</Label>
             <Input
               id="email"
               type="email"
               placeholder="tenban@example.com"
               autoComplete="email"
+              inputMode="email"
+              className="text-base sm:text-xs"
               {...register("email")}
             />
-            {errors.email && <p className="text-xs text-rose-600">{errors.email.message}</p>}
+            {errors.email && <p className="text-xs text-rose-600 dark:text-rose-400">{errors.email.message}</p>}
           </div>
 
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <Label htmlFor="password">Mật khẩu</Label>
+              <Label htmlFor="password" className="text-xs font-semibold">Mật khẩu</Label>
               <Link
                 href="/forgot-password"
-                className="text-xs text-primary hover:underline font-medium"
+                className="text-[11px] text-primary hover:underline font-medium"
               >
                 Quên mật khẩu?
               </Link>
             </div>
-            <Input
+            <PasswordInput
               id="password"
-              type="password"
               placeholder="••••••••"
               autoComplete="current-password"
               {...register("password")}
             />
-            {errors.password && <p className="text-xs text-rose-600">{errors.password.message}</p>}
+            {errors.password && <p className="text-xs text-rose-600 dark:text-rose-400">{errors.password.message}</p>}
           </div>
 
-          <Button type="submit" className="w-full mt-2" disabled={isLoading}>
+          <Button type="submit" className="w-full mt-2 font-semibold shadow-xs gap-1.5" disabled={isLoading}>
             {isLoading ? (
               <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Đang xử lý...
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Đang xử lý...</span>
               </>
             ) : (
-              "Đăng nhập"
+              <>
+                <span>Đăng nhập</span>
+                <ArrowRight className="w-4 h-4" />
+              </>
             )}
           </Button>
         </form>
       </CardContent>
-      <CardFooter className="flex justify-center border-t py-4 text-xs text-muted-foreground">
-        Chưa có tài khoản?{" "}
-        <Link href="/register" className="ml-1 font-semibold text-primary hover:underline">
-          Đăng ký ngay
-        </Link>
+      <CardFooter className="flex justify-center border-t border-border/50 pt-4 pb-4">
+        <p className="text-xs text-muted-foreground">
+          Chưa có tài khoản?{" "}
+          <Link href="/register" className="text-primary hover:underline font-semibold">
+            Đăng ký ngay
+          </Link>
+        </p>
       </CardFooter>
     </Card>
   );

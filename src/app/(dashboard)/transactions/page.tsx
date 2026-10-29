@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Search,
   Trash2,
@@ -8,12 +8,20 @@ import {
   ChevronLeft,
   ChevronRight,
   Receipt,
-  Loader2,
+  RotateCcw,
   ZoomIn,
+  TrendingUp,
+  TrendingDown,
+  Wallet,
+  Calendar,
+  X,
+  Plus,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -29,10 +37,17 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { formatVND, formatNumberVN, sanitizeCurrencyInput } from "@/lib/utils/currency";
-import { formatVNDate, getVietnamTodayString, getMonthDateRange, getVietnamCurrentMonthString } from "@/lib/utils/date";
+import { formatVNDate } from "@/lib/utils/date";
 import { getReceiptThumbnailUrl } from "@/lib/utils/image";
 import { ReceiptLightboxModal, LightboxData } from "@/components/ui/ReceiptLightboxModal";
 import { ReceiptUploadField } from "@/components/ui/ReceiptUploadField";
+import { CategoryIcon } from "@/features/categories/components/CategoryIcon";
+import {
+  calculateTransactionsSummary,
+  getQuickDateRange,
+  matchDatePreset,
+  QuickDatePreset,
+} from "@/features/transactions/services/transactionUiHelpers";
 import { Transaction, Category } from "@/types";
 import { toast } from "sonner";
 
@@ -45,7 +60,8 @@ export default function TransactionsPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   // Filters
-  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedType, setSelectedType] = useState<string>("ALL");
   const [selectedCategory, setSelectedCategory] = useState<string>("ALL");
   const [startDate, setStartDate] = useState("");
@@ -67,6 +83,20 @@ export default function TransactionsPage() {
   const [deletingTxId, setDeletingTxId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Search Debounce (300ms)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchInput.trim());
+      setCurrentPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  const activeDatePreset = useMemo(
+    () => matchDatePreset(startDate, endDate),
+    [startDate, endDate]
+  );
+
   const fetchCategories = async () => {
     try {
       const res = await fetch("/api/v1/categories");
@@ -85,7 +115,7 @@ export default function TransactionsPage() {
       const params = new URLSearchParams();
       params.set("page", currentPage.toString());
       params.set("pageSize", "15");
-      if (search.trim()) params.set("search", search.trim());
+      if (debouncedSearch) params.set("search", debouncedSearch);
       if (selectedType !== "ALL") params.set("type", selectedType);
       if (selectedCategory !== "ALL") params.set("categoryId", selectedCategory);
       if (startDate) params.set("startDate", startDate);
@@ -105,7 +135,7 @@ export default function TransactionsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [currentPage, search, selectedType, selectedCategory, startDate, endDate]);
+  }, [currentPage, debouncedSearch, selectedType, selectedCategory, startDate, endDate]);
 
   useEffect(() => {
     fetchCategories();
@@ -120,6 +150,9 @@ export default function TransactionsPage() {
     window.addEventListener("pocketflow:transaction-created", onTxCreated);
     return () => window.removeEventListener("pocketflow:transaction-created", onTxCreated);
   }, [loadTransactions]);
+
+  // Real-time summary of currently loaded transactions
+  const summary = useMemo(() => calculateTransactionsSummary(transactions), [transactions]);
 
   const handleOpenEdit = (tx: Transaction) => {
     setEditingTx(tx);
@@ -189,58 +222,199 @@ export default function TransactionsPage() {
     }
   };
 
+  const handleApplyPreset = (preset: QuickDatePreset) => {
+    const range = getQuickDateRange(preset);
+    setStartDate(range.startDate);
+    setEndDate(range.endDate);
+    setCurrentPage(1);
+  };
+
+  const handleResetFilters = () => {
+    setSearchInput("");
+    setDebouncedSearch("");
+    setSelectedType("ALL");
+    setSelectedCategory("ALL");
+    setStartDate("");
+    setEndDate("");
+    setCurrentPage(1);
+  };
+
   const filteredCategoriesForEdit = categories.filter((c) => c.type === editType);
 
   return (
     <div className="space-y-6">
       {/* Top Header */}
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Sổ giao dịch</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          Tìm kiếm, lọc và quản lý toàn bộ các giao dịch tài chính
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Sổ giao dịch</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Tìm kiếm, lọc và quản lý toàn bộ các giao dịch tài chính
+          </p>
+        </div>
       </div>
 
-      {/* Filter Toolbar */}
-      <Card className="shadow-sm">
-        <CardContent className="p-4 space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-            {/* Search */}
-            <div className="lg:col-span-2 relative">
+      {/* Real-Time Financial Summary Strip */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {/* Metric 1: Tổng thu trang hiện tại */}
+        <Card className="border border-emerald-500/25 bg-gradient-to-br from-emerald-500/5 to-transparent shadow-xs">
+          <CardContent className="p-3.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-muted-foreground">Tổng thu (Trang)</span>
+              <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                <TrendingUp className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="mt-1.5 font-mono tabular-nums text-lg font-bold text-emerald-600 dark:text-emerald-400">
+              +{formatVND(summary.totalIncome)}
+            </div>
+            <div className="text-[11px] text-muted-foreground mt-0.5">
+              {summary.incomeCount} giao dịch thu
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Metric 2: Tổng chi trang hiện tại */}
+        <Card className="border border-rose-500/25 bg-gradient-to-br from-rose-500/5 to-transparent shadow-xs">
+          <CardContent className="p-3.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-muted-foreground">Tổng chi (Trang)</span>
+              <div className="w-7 h-7 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center">
+                <TrendingDown className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="mt-1.5 font-mono tabular-nums text-lg font-bold text-rose-600 dark:text-rose-400">
+              -{formatVND(summary.totalExpense)}
+            </div>
+            <div className="text-[11px] text-muted-foreground mt-0.5">
+              {summary.expenseCount} giao dịch chi
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Metric 3: Chênh lệch ròng (Net flow) */}
+        <Card
+          className={`border shadow-xs bg-gradient-to-br to-transparent ${
+            summary.netFlow >= 0
+              ? "border-primary/25 from-primary/5"
+              : "border-rose-500/25 from-rose-500/5"
+          }`}
+        >
+          <CardContent className="p-3.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-muted-foreground">Dòng tiền ròng</span>
+              <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                <Wallet className="w-4 h-4" />
+              </div>
+            </div>
+            <div
+              className={`mt-1.5 font-mono tabular-nums text-lg font-bold ${
+                summary.netFlow >= 0
+                  ? "text-primary"
+                  : "text-rose-600 dark:text-rose-400"
+              }`}
+            >
+              {summary.netFlow >= 0 ? "+" : ""}
+              {formatVND(summary.netFlow)}
+            </div>
+            <div className="text-[11px] text-muted-foreground mt-0.5">
+              {summary.netFlow >= 0 ? "Thặng dư trang" : "Thâm hụt trang"}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Metric 4: Tổng số giao dịch */}
+        <Card className="border border-border/60 bg-muted/20 shadow-xs">
+          <CardContent className="p-3.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-muted-foreground">Khớp bộ lọc</span>
+              <div className="w-7 h-7 rounded-lg bg-muted text-muted-foreground flex items-center justify-center">
+                <Receipt className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="mt-1.5 font-mono tabular-nums text-lg font-bold text-foreground">
+              {totalCount} <span className="text-xs font-normal text-muted-foreground">mục</span>
+            </div>
+            <div className="text-[11px] text-muted-foreground mt-0.5">
+              Hiển thị {transactions.length} trên trang này
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Smart Filter Toolbar */}
+      <Card className="shadow-xs border border-border/80 bg-card/60 backdrop-blur-xs">
+        <CardContent className="p-4 space-y-3.5">
+          {/* Row 1: Search, Type Segmented Control & Category */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+            {/* Search Input with Debounce & Clear Button */}
+            <div className="md:col-span-5 relative">
               <Search className="w-4 h-4 absolute left-3 top-3 text-muted-foreground" />
               <Input
-                placeholder="Tìm kiếm theo mô tả (VD: ăn trưa, lương...)"
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="pl-9"
+                placeholder="Tìm theo mô tả (VD: ăn trưa, xăng, lương...)"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                className="pl-9 pr-8 text-base sm:text-xs h-10 sm:h-9"
               />
+              {searchInput && (
+                <button
+                  type="button"
+                  onClick={() => setSearchInput("")}
+                  className="absolute right-2.5 top-2.5 sm:top-2 p-1 text-muted-foreground hover:text-foreground cursor-pointer rounded-full"
+                  title="Xóa tìm kiếm"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
 
-            {/* Type */}
-            <div>
-              <Select
-                value={selectedType}
-                onValueChange={(val) => {
-                  setSelectedType(val);
+            {/* Type Segmented Control */}
+            <div className="md:col-span-4 flex items-center bg-muted/60 p-1 rounded-xl border border-border/60">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedType("ALL");
                   setCurrentPage(1);
                 }}
+                className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                  selectedType === "ALL"
+                    ? "bg-background text-foreground shadow-xs font-bold"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Loại giao dịch" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">Tất cả loại</SelectItem>
-                  <SelectItem value="EXPENSE">Chi tiêu (Expense)</SelectItem>
-                  <SelectItem value="INCOME">Thu nhập (Income)</SelectItem>
-                </SelectContent>
-              </Select>
+                Tất cả
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedType("EXPENSE");
+                  setCurrentPage(1);
+                }}
+                className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                  selectedType === "EXPENSE"
+                    ? "bg-rose-500/15 text-rose-600 dark:text-rose-400 font-bold shadow-xs border border-rose-500/20"
+                    : "text-muted-foreground hover:text-rose-600"
+                }`}
+              >
+                Chi tiêu
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedType("INCOME");
+                  setCurrentPage(1);
+                }}
+                className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                  selectedType === "INCOME"
+                    ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold shadow-xs border border-emerald-500/20"
+                    : "text-muted-foreground hover:text-emerald-600"
+                }`}
+              >
+                Thu nhập
+              </button>
             </div>
 
-            {/* Category */}
-            <div>
+            {/* Category Select with CategoryIcon & Color Dot */}
+            <div className="md:col-span-3">
               <Select
                 value={selectedCategory}
                 onValueChange={(val) => {
@@ -248,43 +422,88 @@ export default function TransactionsPage() {
                   setCurrentPage(1);
                 }}
               >
-                <SelectTrigger>
+                <SelectTrigger className="h-10 sm:h-9 text-xs">
                   <SelectValue placeholder="Danh mục" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ALL">Tất cả danh mục</SelectItem>
                   {categories.map((c) => (
                     <SelectItem key={c.id} value={c.id}>
-                      {c.name} ({c.type === "INCOME" ? "Thu" : "Chi"})
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="w-2 h-2 rounded-full shrink-0"
+                          style={{ backgroundColor: c.color }}
+                        />
+                        <CategoryIcon iconName={c.icon} categoryName={c.name} className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate">{c.name}</span>
+                        <span className="text-[10px] text-muted-foreground shrink-0">
+                          ({c.type === "INCOME" ? "Thu" : "Chi"})
+                        </span>
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-
-            {/* Reset Filters */}
-            <Button
-              variant="outline"
-              onClick={() => {
-                setSearch("");
-                setSelectedType("ALL");
-                setSelectedCategory("ALL");
-                setStartDate("");
-                setEndDate("");
-                setCurrentPage(1);
-              }}
-              className="text-xs"
-            >
-              Đặt lại bộ lọc
-            </Button>
           </div>
 
-          {/* Date Range Sub-filter with Quick Presets */}
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t text-xs text-muted-foreground">
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="font-medium">Khoảng ngày:</span>
-              <div className="flex items-center gap-1.5">
-                <span>Từ</span>
+          {/* Row 2: Date Filters & Quick Presets */}
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-2.5 border-t border-border/50 text-xs">
+            {/* Quick Preset Chips */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-muted-foreground text-[11px] font-medium mr-1 flex items-center gap-1">
+                <Calendar className="w-3 h-3" /> Nhanh:
+              </span>
+              <button
+                type="button"
+                onClick={() => handleApplyPreset("all")}
+                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                  activeDatePreset === "all"
+                    ? "bg-primary text-white shadow-xs font-semibold"
+                    : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                Tất cả
+              </button>
+              <button
+                type="button"
+                onClick={() => handleApplyPreset("today")}
+                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                  activeDatePreset === "today"
+                    ? "bg-primary text-white shadow-xs font-semibold"
+                    : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                Hôm nay
+              </button>
+              <button
+                type="button"
+                onClick={() => handleApplyPreset("week")}
+                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                  activeDatePreset === "week"
+                    ? "bg-primary text-white shadow-xs font-semibold"
+                    : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                Tuần này
+              </button>
+              <button
+                type="button"
+                onClick={() => handleApplyPreset("month")}
+                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                  activeDatePreset === "month"
+                    ? "bg-primary text-white shadow-xs font-semibold"
+                    : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                Tháng này
+              </button>
+            </div>
+
+            {/* Custom Date Range & Reset Button */}
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-1.5 text-muted-foreground">
+                <span className="text-[11px]">Từ</span>
                 <Input
                   type="date"
                   value={startDate}
@@ -292,11 +511,9 @@ export default function TransactionsPage() {
                     setStartDate(e.target.value);
                     setCurrentPage(1);
                   }}
-                  className="h-8 w-36 text-xs"
+                  className="h-8 w-32 sm:w-34 text-xs"
                 />
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span>Đến</span>
+                <span className="text-[11px]">Đến</span>
                 <Input
                   type="date"
                   value={endDate}
@@ -304,189 +521,343 @@ export default function TransactionsPage() {
                     setEndDate(e.target.value);
                     setCurrentPage(1);
                   }}
-                  className="h-8 w-36 text-xs"
+                  className="h-8 w-32 sm:w-34 text-xs"
                 />
               </div>
-            </div>
 
-            {/* Quick date filters */}
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px] font-medium">Chọn nhanh:</span>
-              <button
-                type="button"
-                onClick={() => {
-                  const today = getVietnamTodayString();
-                  setStartDate(today);
-                  setEndDate(today);
-                  setCurrentPage(1);
-                }}
-                className="px-2 py-1 rounded bg-muted hover:bg-muted/80 text-foreground transition-colors"
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleResetFilters}
+                className="h-8 text-xs text-muted-foreground hover:text-foreground gap-1 px-2.5"
+                title="Xóa toàn bộ bộ lọc"
               >
-                Hôm nay
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const currentMonth = getVietnamCurrentMonthString();
-                  const { startDate: s, endDate: e } = getMonthDateRange(currentMonth);
-                  setStartDate(s);
-                  setEndDate(e);
-                  setCurrentPage(1);
-                }}
-                className="px-2 py-1 rounded bg-muted hover:bg-muted/80 text-foreground transition-colors"
-              >
-                Tháng này
-              </button>
+                <RotateCcw className="w-3 h-3" />
+                <span>Đặt lại</span>
+              </Button>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Transactions Table */}
-      <Card className="shadow-sm">
+      {/* Transactions Container */}
+      <Card className="shadow-xs border border-border/80 overflow-hidden">
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="py-12 flex justify-center items-center text-muted-foreground text-sm">
-              <Loader2 className="w-6 h-6 animate-spin mr-2" />
-              Đang tải dữ liệu giao dịch...
+            <div className="p-4 space-y-3">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="flex items-center justify-between p-3 border rounded-xl animate-pulse">
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="w-10 h-10 rounded-2xl" />
+                    <div className="space-y-1.5">
+                      <Skeleton className="w-36 h-4 rounded" />
+                      <Skeleton className="w-24 h-3 rounded" />
+                    </div>
+                  </div>
+                  <Skeleton className="w-28 h-5 rounded" />
+                </div>
+              ))}
             </div>
           ) : transactions.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground text-sm space-y-2">
-              <Receipt className="w-10 h-10 mx-auto text-muted-foreground/40" />
-              <p>Không tìm thấy giao dịch nào phù hợp.</p>
+            <div className="text-center py-16 px-4 space-y-3">
+              <div className="w-14 h-14 rounded-full bg-muted/60 flex items-center justify-center mx-auto text-muted-foreground/60">
+                <Receipt className="w-7 h-7" />
+              </div>
+              <div>
+                <h3 className="font-bold text-base text-foreground">Không tìm thấy giao dịch nào</h3>
+                <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
+                  Không có bản ghi nào khớp với điều kiện lọc hiện tại. Thử đổi từ khóa tìm kiếm hoặc đặt lại bộ lọc.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleResetFilters}
+                className="text-xs gap-1.5 mt-2"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                Đặt lại bộ lọc
+              </Button>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead className="text-xs uppercase bg-muted/50 text-muted-foreground border-b">
-                  <tr>
-                    <th className="px-4 py-3">Ngày</th>
-                    <th className="px-4 py-3">Mô tả</th>
-                    <th className="px-4 py-3">Danh mục</th>
-                    <th className="px-4 py-3 text-right">Số tiền</th>
-                    <th className="px-4 py-3 text-center">Hành động</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {transactions.map((tx) => (
-                    <tr key={tx.id} className="hover:bg-muted/30 transition-colors">
-                      <td className="px-4 py-3 whitespace-nowrap text-xs font-medium text-muted-foreground">
-                        {formatVNDate(tx.transactionDate, "short")}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-3">
-                          {tx.receiptUrl ? (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setLightboxData({
-                                  imageUrl: tx.receiptUrl!,
-                                  description: tx.description,
-                                  amount: tx.amount,
-                                  type: tx.type,
-                                  categoryName: tx.category?.name,
-                                  transactionDate: tx.transactionDate,
-                                })
-                              }
-                              className="group relative w-9 h-9 rounded-full overflow-hidden shadow-sm shrink-0 border border-slate-200 dark:border-slate-800 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary"
-                              title="Nhấn để xem hóa đơn gốc"
-                            >
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={getReceiptThumbnailUrl(tx.receiptUrl) || tx.receiptUrl}
-                                alt={tx.description}
-                                className="w-full h-full object-cover group-hover:scale-110 transition-transform"
-                              />
-                              <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                <ZoomIn className="w-3 h-3 text-white" />
-                              </div>
-                            </button>
-                          ) : (
-                            <div
-                              className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs text-white shadow-sm shrink-0"
-                              style={{ backgroundColor: tx.category?.color || "#64748b" }}
-                            >
-                              {tx.category?.name.charAt(0) || "T"}
-                            </div>
-                          )}
-                          <div>
-                            <div className="font-semibold text-foreground">{tx.description}</div>
-                            {tx.note && <div className="text-xs text-muted-foreground line-clamp-1">{tx.note}</div>}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-800">
+            <>
+              {/* MOBILE FEED VIEW (< 640px) */}
+              <div className="block sm:hidden divide-y divide-border/60">
+                {transactions.map((tx) => (
+                  <div
+                    key={tx.id}
+                    className="p-3.5 hover:bg-muted/30 transition-colors flex items-center justify-between gap-3"
+                  >
+                    {/* Left: Avatar with CategoryIcon & optional Receipt thumbnail */}
+                    <div className="relative shrink-0">
+                      <div
+                        className="w-11 h-11 rounded-2xl flex items-center justify-center shadow-xs"
+                        style={{
+                          backgroundColor: `${tx.category?.color || "#64748b"}20`,
+                          color: tx.category?.color || "#64748b",
+                        }}
+                      >
+                        <CategoryIcon
+                          iconName={tx.category?.icon}
+                          categoryName={tx.category?.name}
+                          className="w-5 h-5"
+                        />
+                      </div>
+
+                      {/* Receipt Thumbnail Indicator (if uploaded) */}
+                      {tx.receiptUrl && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setLightboxData({
+                              imageUrl: tx.receiptUrl!,
+                              description: tx.description,
+                              amount: tx.amount,
+                              type: tx.type,
+                              categoryName: tx.category?.name,
+                              transactionDate: tx.transactionDate,
+                            })
+                          }
+                          className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full overflow-hidden border-2 border-background shadow-xs hover:scale-110 transition-transform cursor-pointer"
+                          title="Nhấn để xem hóa đơn gốc"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={getReceiptThumbnailUrl(tx.receiptUrl) || tx.receiptUrl}
+                            alt="Hóa đơn"
+                            className="w-full h-full object-cover"
+                          />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Middle: Description, Category pill, Date, Note */}
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-sm text-foreground truncate">
+                        {tx.description}
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground flex-wrap">
+                        <span className="font-medium text-[11px]">
+                          {formatVNDate(tx.transactionDate, "short")}
+                        </span>
+                        <span className="text-muted-foreground/40">•</span>
+                        <span className="inline-flex items-center gap-1 text-[11px]">
                           <span
-                            className="w-2 h-2 rounded-full"
+                            className="w-1.5 h-1.5 rounded-full shrink-0"
                             style={{ backgroundColor: tx.category?.color || "#64748b" }}
                           />
-                          {tx.category?.name || "Chưa phân loại"}
+                          <span className="truncate max-w-[100px]">
+                            {tx.category?.name || "Chưa phân loại"}
+                          </span>
                         </span>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-right">
-                        <span
-                          className={`font-bold ${
-                            tx.type === "INCOME"
-                              ? "text-emerald-600 dark:text-emerald-400"
-                              : "text-rose-600 dark:text-rose-400"
-                          }`}
-                        >
-                          {tx.type === "INCOME" ? "+" : "-"}
-                          {formatVND(tx.amount)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-center">
-                        <div className="flex items-center justify-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleOpenEdit(tx)}
-                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setDeletingTxId(tx.id)}
-                            className="h-8 w-8 text-muted-foreground hover:text-rose-600"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </Button>
+                      </div>
+                      {tx.note && (
+                        <div className="text-[11px] text-muted-foreground/80 line-clamp-1 italic mt-0.5">
+                          {tx.note}
                         </div>
-                      </td>
+                      )}
+                    </div>
+
+                    {/* Right: Amount & Actions */}
+                    <div className="text-right shrink-0 flex flex-col items-end gap-1">
+                      <div
+                        className={`font-mono tabular-nums text-sm font-bold ${
+                          tx.type === "INCOME"
+                            ? "text-emerald-600 dark:text-emerald-400"
+                            : "text-rose-600 dark:text-rose-400"
+                        }`}
+                      >
+                        {tx.type === "INCOME" ? "+" : "-"}
+                        {formatVND(tx.amount)}
+                      </div>
+
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleOpenEdit(tx)}
+                          className="w-7 h-7 text-muted-foreground hover:text-foreground"
+                          title="Chỉnh sửa"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setDeletingTxId(tx.id)}
+                          className="w-7 h-7 text-muted-foreground hover:text-rose-600"
+                          title="Xóa"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* DESKTOP TABLE VIEW (≥ 640px) */}
+              <div className="hidden sm:block overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                  <thead className="text-xs uppercase bg-muted/40 text-muted-foreground border-b font-semibold tracking-wider">
+                    <tr>
+                      <th className="px-5 py-3.5">Ngày</th>
+                      <th className="px-5 py-3.5">Giao dịch</th>
+                      <th className="px-5 py-3.5">Danh mục</th>
+                      <th className="px-5 py-3.5 text-right">Số tiền</th>
+                      <th className="px-5 py-3.5 text-center">Hành động</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-border/60">
+                    {transactions.map((tx) => (
+                      <tr key={tx.id} className="hover:bg-muted/30 transition-colors group">
+                        {/* Date */}
+                        <td className="px-5 py-3.5 whitespace-nowrap text-xs font-medium text-muted-foreground font-mono tabular-nums">
+                          {formatVNDate(tx.transactionDate, "short")}
+                        </td>
+
+                        {/* Description & Avatar */}
+                        <td className="px-5 py-3.5">
+                          <div className="flex items-center gap-3">
+                            {tx.receiptUrl ? (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setLightboxData({
+                                    imageUrl: tx.receiptUrl!,
+                                    description: tx.description,
+                                    amount: tx.amount,
+                                    type: tx.type,
+                                    categoryName: tx.category?.name,
+                                    transactionDate: tx.transactionDate,
+                                  })
+                                }
+                                className="group/receipt relative w-9 h-9 rounded-xl overflow-hidden shadow-xs shrink-0 border border-slate-200 dark:border-slate-800 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary"
+                                title="Nhấn để xem hóa đơn gốc"
+                              >
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={getReceiptThumbnailUrl(tx.receiptUrl) || tx.receiptUrl}
+                                  alt={tx.description}
+                                  className="w-full h-full object-cover group-hover/receipt:scale-110 transition-transform"
+                                />
+                                <div className="absolute inset-0 bg-black/25 group-hover/receipt:bg-black/40 flex items-center justify-center opacity-0 group-hover/receipt:opacity-100 transition-opacity">
+                                  <ZoomIn className="w-3.5 h-3.5 text-white" />
+                                </div>
+                              </button>
+                            ) : (
+                              <div
+                                className="w-9 h-9 rounded-xl flex items-center justify-center shadow-xs shrink-0"
+                                style={{
+                                  backgroundColor: `${tx.category?.color || "#64748b"}20`,
+                                  color: tx.category?.color || "#64748b",
+                                }}
+                              >
+                                <CategoryIcon
+                                  iconName={tx.category?.icon}
+                                  categoryName={tx.category?.name}
+                                  className="w-4 h-4"
+                                />
+                              </div>
+                            )}
+                            <div className="min-w-0">
+                              <div className="font-semibold text-foreground truncate max-w-xs lg:max-w-md">
+                                {tx.description}
+                              </div>
+                              {tx.note && (
+                                <div className="text-xs text-muted-foreground line-clamp-1 italic">
+                                  {tx.note}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Category Pill */}
+                        <td className="px-5 py-3.5 whitespace-nowrap">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-muted/60 border border-border/50">
+                            <span
+                              className="w-2 h-2 rounded-full shrink-0"
+                              style={{ backgroundColor: tx.category?.color || "#64748b" }}
+                            />
+                            <span className="text-foreground">
+                              {tx.category?.name || "Chưa phân loại"}
+                            </span>
+                          </span>
+                        </td>
+
+                        {/* Amount */}
+                        <td className="px-5 py-3.5 whitespace-nowrap text-right">
+                          <span
+                            className={`font-mono tabular-nums font-bold text-sm ${
+                              tx.type === "INCOME"
+                                ? "text-emerald-600 dark:text-emerald-400"
+                                : "text-rose-600 dark:text-rose-400"
+                            }`}
+                          >
+                            {tx.type === "INCOME" ? "+" : "-"}
+                            {formatVND(tx.amount)}
+                          </span>
+                        </td>
+
+                        {/* Actions */}
+                        <td className="px-5 py-3.5 whitespace-nowrap text-center">
+                          <div className="flex items-center justify-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleOpenEdit(tx)}
+                              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                              title="Chỉnh sửa"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setDeletingTxId(tx.id)}
+                              className="h-8 w-8 text-muted-foreground hover:text-rose-600"
+                              title="Xóa giao dịch"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
 
           {/* Pagination Controls */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between px-4 py-3 border-t">
-              <span className="text-xs text-muted-foreground">
-                Tổng cộng {totalCount} giao dịch (Trang {currentPage}/{totalPages})
+            <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 border-t border-border/60 bg-muted/20 text-xs">
+              <span className="text-muted-foreground font-mono tabular-nums">
+                Trang <span className="font-semibold text-foreground">{currentPage}</span> / {totalPages} ({totalCount} giao dịch)
               </span>
-              <div className="flex items-center gap-1">
+
+              <div className="flex items-center gap-1.5">
                 <Button
                   variant="outline"
                   size="sm"
-                  disabled={currentPage <= 1}
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  className="h-8 w-8 p-0"
+                  disabled={currentPage <= 1 || isLoading}
+                  className="h-8 text-xs gap-1 px-2.5 rounded-lg"
                 >
-                  <ChevronLeft className="w-4 h-4" />
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Trước</span>
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  disabled={currentPage >= totalPages}
                   onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  className="h-8 w-8 p-0"
+                  disabled={currentPage >= totalPages || isLoading}
+                  className="h-8 text-xs gap-1 px-2.5 rounded-lg"
                 >
-                  <ChevronRight className="w-4 h-4" />
+                  <span className="hidden sm:inline">Tiếp</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
                 </Button>
               </div>
             </div>
@@ -496,7 +867,7 @@ export default function TransactionsPage() {
 
       {/* Edit Transaction Modal */}
       {editingTx && (
-        <Dialog open={!!editingTx} onOpenChange={() => setEditingTx(null)} modal={false}>
+        <Dialog open={!!editingTx} onOpenChange={() => setEditingTx(null)}>
           <DialogContent
             className="sm:max-w-[480px]"
             onPointerDownOutside={(e) => e.preventDefault()}
@@ -506,7 +877,7 @@ export default function TransactionsPage() {
               <DialogTitle>Chỉnh sửa giao dịch</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-2">
-              <div className="grid grid-cols-2 gap-2 p-1 bg-muted rounded-lg">
+              <div className="grid grid-cols-2 gap-2 p-1 bg-muted rounded-xl border">
                 <button
                   type="button"
                   onClick={() => {
@@ -514,8 +885,10 @@ export default function TransactionsPage() {
                     const available = categories.filter((c) => c.type === "EXPENSE");
                     if (available.length > 0) setEditCategoryId(available[0].id);
                   }}
-                  className={`py-2 text-sm font-semibold rounded-md ${
-                    editType === "EXPENSE" ? "bg-rose-600 text-white shadow" : "text-muted-foreground"
+                  className={`py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                    editType === "EXPENSE"
+                      ? "bg-rose-600 text-white shadow-xs font-bold"
+                      : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   Chi tiêu
@@ -527,8 +900,10 @@ export default function TransactionsPage() {
                     const available = categories.filter((c) => c.type === "INCOME");
                     if (available.length > 0) setEditCategoryId(available[0].id);
                   }}
-                  className={`py-2 text-sm font-semibold rounded-md ${
-                    editType === "INCOME" ? "bg-emerald-600 text-white shadow" : "text-muted-foreground"
+                  className={`py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                    editType === "INCOME"
+                      ? "bg-emerald-600 text-white shadow-xs font-bold"
+                      : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   Thu nhập
@@ -536,43 +911,66 @@ export default function TransactionsPage() {
               </div>
 
               <div>
-                <label className="text-xs font-semibold">Mô tả</label>
-                <Input value={editDesc} onChange={(e) => setEditDesc(e.target.value)} />
+                <label className="text-xs font-semibold text-foreground">Mô tả giao dịch</label>
+                <Input
+                  value={editDesc}
+                  onChange={(e) => setEditDesc(e.target.value)}
+                  placeholder="Nhập mô tả..."
+                  className="mt-1 text-base sm:text-xs"
+                />
               </div>
 
               <div>
-                <label className="text-xs font-semibold">Số tiền (VND)</label>
+                <label className="text-xs font-semibold text-foreground">Số tiền (VND)</label>
                 <Input
                   value={formatNumberVN(editAmount)}
                   onChange={(e) => setEditAmount(sanitizeCurrencyInput(e.target.value))}
+                  placeholder="0"
+                  className="mt-1 font-mono tabular-nums text-base sm:text-xs font-semibold"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold">Danh mục</label>
+                  <label className="text-xs font-semibold text-foreground">Danh mục</label>
                   <Select value={editCategoryId} onValueChange={setEditCategoryId}>
-                    <SelectTrigger>
+                    <SelectTrigger className="mt-1 text-xs">
                       <SelectValue placeholder="Chọn danh mục" />
                     </SelectTrigger>
                     <SelectContent>
                       {filteredCategoriesForEdit.map((c) => (
                         <SelectItem key={c.id} value={c.id}>
-                          {c.name}
+                          <div className="flex items-center gap-1.5">
+                            <span
+                              className="w-2 h-2 rounded-full shrink-0"
+                              style={{ backgroundColor: c.color }}
+                            />
+                            <span>{c.name}</span>
+                          </div>
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold">Ngày giao dịch</label>
-                  <Input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} />
+                  <label className="text-xs font-semibold text-foreground">Ngày giao dịch</label>
+                  <Input
+                    type="date"
+                    value={editDate}
+                    onChange={(e) => setEditDate(e.target.value)}
+                    className="mt-1 text-xs"
+                  />
                 </div>
               </div>
 
               <div>
-                <label className="text-xs font-semibold">Ghi chú</label>
-                <Input value={editNote} onChange={(e) => setEditNote(e.target.value)} />
+                <label className="text-xs font-semibold text-foreground">Ghi chú (tùy chọn)</label>
+                <Input
+                  value={editNote}
+                  onChange={(e) => setEditNote(e.target.value)}
+                  placeholder="Thêm ghi chú chi tiết..."
+                  className="mt-1 text-base sm:text-xs"
+                />
               </div>
 
               <div>
@@ -642,6 +1040,7 @@ export default function TransactionsPage() {
           </DialogContent>
         </Dialog>
       )}
+
       {/* Receipt Lightbox Full-View Modal */}
       <ReceiptLightboxModal
         data={lightboxData}
