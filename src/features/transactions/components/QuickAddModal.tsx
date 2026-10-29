@@ -272,25 +272,25 @@ export function QuickAddModal({
           </div>
 
           {/* Category & Date in 2 columns */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
+          <div className="grid grid-cols-2 gap-3 min-w-0">
+            <div className="space-y-1 min-w-0">
               <Label htmlFor="category">Danh mục</Label>
               <Select
                 value={watch("categoryId")}
                 onValueChange={(val) => setValue("categoryId", val, { shouldValidate: true })}
               >
-                <SelectTrigger id="category">
+                <SelectTrigger id="category" className="w-full min-w-0">
                   <SelectValue placeholder="Chọn danh mục" />
                 </SelectTrigger>
                 <SelectContent>
                   {filteredCategories.map((c) => (
                     <SelectItem key={c.id} value={c.id}>
-                      <span className="flex items-center gap-2">
+                      <span className="flex items-center gap-2 min-w-0">
                         <span
-                          className="w-2.5 h-2.5 rounded-full inline-block"
+                          className="w-2.5 h-2.5 rounded-full inline-block shrink-0"
                           style={{ backgroundColor: c.color }}
                         />
-                        {c.name}
+                        <span className="truncate">{c.name}</span>
                       </span>
                     </SelectItem>
                   ))}
@@ -301,11 +301,12 @@ export function QuickAddModal({
               )}
             </div>
 
-            <div className="space-y-1">
+            <div className="space-y-1 min-w-0">
               <Label htmlFor="transactionDate">Ngày giao dịch</Label>
               <Input
                 id="transactionDate"
                 type="date"
+                className="w-full min-w-0 max-w-full block px-2.5 text-center sm:text-left"
                 {...register("transactionDate")}
               />
               {errors.transactionDate && (

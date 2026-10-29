@@ -707,17 +707,17 @@ export function InstantReceiptCaptureModal({
               </div>
 
               {/* Category & Date in 2 columns */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
+              <div className="grid grid-cols-2 gap-3 min-w-0">
+                <div className="space-y-1 min-w-0">
                   <label className="text-xs font-semibold text-foreground">Danh mục *</label>
                   <Select value={selectedCategoryId} onValueChange={setSelectedCategoryId}>
-                    <SelectTrigger className="text-xs h-10">
+                    <SelectTrigger className="text-xs h-10 w-full min-w-0">
                       <SelectValue placeholder="Chọn danh mục" />
                     </SelectTrigger>
                     <SelectContent>
                       {filteredCategories.map((c) => (
                         <SelectItem key={c.id} value={c.id}>
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 min-w-0">
                             <span
                               className="w-2 h-2 rounded-full shrink-0"
                               style={{ backgroundColor: c.color }}
@@ -731,13 +731,13 @@ export function InstantReceiptCaptureModal({
                   </Select>
                 </div>
 
-                <div className="space-y-1">
+                <div className="space-y-1 min-w-0">
                   <label className="text-xs font-semibold text-foreground">Ngày giao dịch</label>
                   <Input
                     type="date"
                     value={transactionDate}
                     onChange={(e) => setTransactionDate(e.target.value)}
-                    className="text-xs h-10"
+                    className="text-xs h-10 w-full min-w-0 max-w-full block px-2.5 text-center sm:text-left"
                   />
                 </div>
               </div>
