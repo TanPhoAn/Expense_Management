@@ -76,9 +76,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   ];
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-16 md:pb-0">
+    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))] md:pb-0">
       {/* Top Navigation Bar */}
-      <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 pt-safe">
         <div className="container max-w-7xl mx-auto flex h-16 items-center justify-between px-4 sm:px-6">
           {/* Logo & Navigation */}
           <div className="flex items-center gap-6">
@@ -165,7 +165,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </main>
 
       {/* Mobile Bottom Navigation */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-background border-t flex justify-around items-center h-16 px-2 shadow-lg">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-background/95 backdrop-blur border-t flex justify-around items-center h-[calc(4rem+env(safe-area-inset-bottom,0px))] pb-safe px-2 shadow-lg">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;
