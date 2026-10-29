@@ -278,10 +278,10 @@ export function matchBestCategory(
 
   // Common mapping rules
   const keywordMap: Record<string, string[]> = {
-    "Ăn uống": ["ăn", "cơm", "phở", "bún", "bánh", "uống", "cà phê", "cafe", "trà", "nước", "highland", "starbucks", "trưa", "tối", "sáng", "nhậu", "buffet"],
-    "Di chuyển": ["xăng", "xe", "grab", "be", "taxi", "gửi xe", "vé", "bus", "xe buýt", "bảo dưỡng"],
-    "Mua sắm": ["mua", "quần", "áo", "giày", "dép", "shopee", "lazada", "tiki", "siêu thị", "chợ"],
-    "Hóa đơn": ["điện", "nước", "mạng", "internet", "wifi", "nhà", "tiền phòng", "truyền hình"],
+    "Hóa đơn": ["tiền điện", "tiền nước", "tiền mạng", "tiền nhà", "tiền phòng", "hóa đơn", "điện", "nước sinh hoạt", "mạng", "internet", "wifi", "truyền hình"],
+    "Ăn uống": ["ăn", "cơm", "phở", "bún", "bánh", "uống", "cà phê", "cafe", "trà", "nước ngọt", "nước ép", "highland", "starbucks", "trưa", "tối", "sáng", "nhậu", "buffet", "đồ ăn", "thức uống"],
+    "Di chuyển": ["xăng", "xe", "grab", "grabcar", "grabbike", "be", "becar", "bebike", "petrolimex", "taxi", "gửi xe", "vé", "bus", "xe buýt", "bảo dưỡng"],
+    "Mua sắm": ["mua", "quần", "áo", "giày", "dép", "shopee", "lazada", "tiki", "siêu thị", "chợ", "winmart", "coop"],
     "Giải trí": ["phim", "game", "du lịch", "karaoke", "sách", "truyện", "netflix", "spotify"],
     "Lương": ["lương", "salary", "công"],
     "Thưởng": ["thưởng", "bonus", "hoa hồng"],

@@ -247,7 +247,7 @@ export function InstantReceiptCaptureModal({
       .then((res) => res.json())
       .then((json) => {
         if (json.data) {
-          const { amount, description, merchant, date } = json.data;
+          const { amount, description, merchant, date, categoryName } = json.data;
           let detectedAny = false;
 
           if (amount && amount > 0) {
@@ -255,27 +255,85 @@ export function InstantReceiptCaptureModal({
             detectedAny = true;
           }
 
-          if (description || merchant) {
-            const finalDesc = description || merchant || "";
+          const finalDesc = description || merchant || "";
+          if (finalDesc) {
             setDescriptionInput(finalDesc);
             detectedAny = true;
+          }
 
-            // Suggest matching category based on description
+          // 1. Match category: Prioritize categoryName returned by Gemini Vision
+          let matchedCat: Category | undefined = undefined;
+          if (categoryName) {
+            const normCatName = categoryName.trim().toLowerCase();
+            matchedCat = categories.find(
+              (c) =>
+                c.name.trim().toLowerCase() === normCatName ||
+                c.name.trim().toLowerCase().includes(normCatName) ||
+                normCatName.includes(c.name.trim().toLowerCase())
+            );
+          }
+
+          // 2. Fallback to keyword matching based on description & merchant
+          if (!matchedCat && finalDesc) {
             const descLower = finalDesc.toLowerCase();
-            const matchedCat = categories.find((c) => {
+            matchedCat = categories.find((c) => {
               const catName = c.name.toLowerCase();
               return (
                 descLower.includes(catName) ||
-                (catName.includes("ăn") && (descLower.includes("cơm") || descLower.includes("phở") || descLower.includes("cafe") || descLower.includes("bún"))) ||
-                (catName.includes("xăng") && (descLower.includes("petrolimex") || descLower.includes("xăng") || descLower.includes("dầu"))) ||
-                (catName.includes("siêu thị") && (descLower.includes("coop") || descLower.includes("vinmart") || descLower.includes("winmart") || descLower.includes("bách hóa")))
+                (catName.includes("ăn") &&
+                  (descLower.includes("cơm") ||
+                    descLower.includes("phở") ||
+                    descLower.includes("cafe") ||
+                    descLower.includes("cà phê") ||
+                    descLower.includes("bún") ||
+                    descLower.includes("bánh") ||
+                    descLower.includes("trà") ||
+                    descLower.includes("uống") ||
+                    descLower.includes("thịt") ||
+                    descLower.includes("món"))) ||
+                ((catName.includes("chuyển") || catName.includes("đi lại")) &&
+                  (descLower.includes("xăng") ||
+                    descLower.includes("xe") ||
+                    descLower.includes("grab") ||
+                    descLower.includes("be") ||
+                    descLower.includes("dầu") ||
+                    descLower.includes("gửi xe") ||
+                    descLower.includes("petrolimex"))) ||
+                (catName.includes("sắm") &&
+                  (descLower.includes("áo") ||
+                    descLower.includes("quần") ||
+                    descLower.includes("giày") ||
+                    descLower.includes("dép") ||
+                    descLower.includes("shopee") ||
+                    descLower.includes("tiki") ||
+                    descLower.includes("lazada") ||
+                    descLower.includes("siêu thị") ||
+                    descLower.includes("coop") ||
+                    descLower.includes("winmart") ||
+                    descLower.includes("bách hóa"))) ||
+                ((catName.includes("hóa đơn") || catName.includes("tiện ích")) &&
+                  (descLower.includes("điện") ||
+                    descLower.includes("nước") ||
+                    descLower.includes("wifi") ||
+                    descLower.includes("internet"))) ||
+                (catName.includes("giải trí") &&
+                  (descLower.includes("phim") ||
+                    descLower.includes("rạp") ||
+                    descLower.includes("karaoke") ||
+                    descLower.includes("du lịch"))) ||
+                (catName.includes("sức khỏe") &&
+                  (descLower.includes("thuốc") ||
+                    descLower.includes("khám") ||
+                    descLower.includes("nha khoa") ||
+                    descLower.includes("gym")))
               );
             });
+          }
 
-            if (matchedCat) {
-              setSelectedType(matchedCat.type);
-              setSelectedCategoryId(matchedCat.id);
-            }
+          if (matchedCat) {
+            setSelectedType(matchedCat.type);
+            setSelectedCategoryId(matchedCat.id);
+            detectedAny = true;
           }
 
           if (date) {
@@ -285,7 +343,11 @@ export function InstantReceiptCaptureModal({
 
           if (detectedAny) {
             setAiDetectedSuccess(true);
-            toast.success("✨ Gemini đã tự động trích xuất thông tin hóa đơn!");
+            if (matchedCat) {
+              toast.success(`✨ Gemini đã nhận diện danh mục: ${matchedCat.name}!`);
+            } else {
+              toast.success("✨ Gemini đã tự động trích xuất thông tin chi tiêu!");
+            }
           }
         }
       })
@@ -640,16 +702,16 @@ export function InstantReceiptCaptureModal({
                   {isScanningAi ? (
                     <div className="flex items-center gap-2 text-xs text-primary font-semibold animate-pulse">
                       <Sparkles className="w-4 h-4 shrink-0 animate-spin" />
-                      <span>AI đang đọc số tiền & thông tin...</span>
+                      <span>AI đang nhận diện hình ảnh & danh mục...</span>
                     </div>
                   ) : aiDetectedSuccess ? (
                     <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-semibold">
                       <Check className="w-4 h-4 shrink-0" />
-                      <span>Gemini đã trích xuất hóa đơn tự động!</span>
+                      <span>Gemini đã nhận diện thông tin tự động!</span>
                     </div>
                   ) : (
                     <span className="text-xs text-muted-foreground">
-                      Ảnh hóa đơn đã sẵn sàng lưu trữ
+                      Ảnh chi tiêu đã sẵn sàng lưu trữ
                     </span>
                   )}
                   <p className="text-[11px] text-muted-foreground/80 mt-0.5 truncate">
@@ -714,7 +776,7 @@ export function InstantReceiptCaptureModal({
                     <SelectTrigger className="text-xs h-10 w-full min-w-0">
                       <SelectValue placeholder="Chọn danh mục" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="z-[99999] max-h-60">
                       {filteredCategories.map((c) => (
                         <SelectItem key={c.id} value={c.id}>
                           <div className="flex items-center gap-1.5 min-w-0">

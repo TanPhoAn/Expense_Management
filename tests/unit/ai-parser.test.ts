@@ -119,6 +119,28 @@ describe("AI Natural Language Parser & Receipt OCR Sanitizer (Phase 15)", () => 
         updatedAt: new Date(),
       },
       {
+        id: "cat_shopping",
+        userId: "u1",
+        name: "Mua sắm",
+        type: "EXPENSE",
+        isDefault: true,
+        icon: "shopping-bag",
+        color: "#8b5cf6",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        id: "cat_bills",
+        userId: "u1",
+        name: "Hóa đơn",
+        type: "EXPENSE",
+        isDefault: true,
+        icon: "file-text",
+        color: "#f97316",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
         id: "cat_salary",
         userId: "u1",
         name: "Lương",
@@ -166,6 +188,31 @@ describe("AI Natural Language Parser & Receipt OCR Sanitizer (Phase 15)", () => 
 
       const catBonus = matchBestCategory("tiền thưởng", "INCOME", mockCategories);
       expect(catBonus?.name).toBe("Thưởng");
+    });
+
+    it("should classify real-world object photos and activities into correct categories (Multimodal Vision Heuristics)", () => {
+      // Food & Drink items (đồ ăn, nước uống)
+      expect(matchBestCategory("Cà phê phin sữa đá", "EXPENSE", mockCategories)?.name).toBe("Ăn uống");
+      expect(matchBestCategory("Đĩa cơm sườn bì chả", "EXPENSE", mockCategories)?.name).toBe("Ăn uống");
+      expect(matchBestCategory("Tô bún bò Huế", "EXPENSE", mockCategories)?.name).toBe("Ăn uống");
+      expect(matchBestCategory("Trà đào cam sả", "EXPENSE", mockCategories)?.name).toBe("Ăn uống");
+
+      // Transport & Fuel items (xe cộ, đi lại, đổ xăng)
+      expect(matchBestCategory("Đổ xăng xe máy", "EXPENSE", mockCategories)?.name).toBe("Di chuyển");
+      expect(matchBestCategory("Cây xăng Petrolimex", "EXPENSE", mockCategories)?.name).toBe("Di chuyển");
+      expect(matchBestCategory("Chuyến GrabCar đi làm", "EXPENSE", mockCategories)?.name).toBe("Di chuyển");
+      expect(matchBestCategory("Vé gửi xe tòa nhà", "EXPENSE", mockCategories)?.name).toBe("Di chuyển");
+
+      // Shopping items (quần áo, giày dép, siêu thị)
+      expect(matchBestCategory("Áo thun polo đen", "EXPENSE", mockCategories)?.name).toBe("Mua sắm");
+      expect(matchBestCategory("Quần jean baggy", "EXPENSE", mockCategories)?.name).toBe("Mua sắm");
+      expect(matchBestCategory("Giày chạy bộ", "EXPENSE", mockCategories)?.name).toBe("Mua sắm");
+      expect(matchBestCategory("Mua đồ siêu thị WinMart", "EXPENSE", mockCategories)?.name).toBe("Mua sắm");
+
+      // Bills & Utilities (hóa đơn, tiện ích)
+      expect(matchBestCategory("Hóa đơn tiền điện", "EXPENSE", mockCategories)?.name).toBe("Hóa đơn");
+      expect(matchBestCategory("Tiền nước sinh hoạt", "EXPENSE", mockCategories)?.name).toBe("Hóa đơn");
+      expect(matchBestCategory("Cước mạng internet wifi", "EXPENSE", mockCategories)?.name).toBe("Hóa đơn");
     });
 
     it("should assemble full parsed natural language transaction", () => {

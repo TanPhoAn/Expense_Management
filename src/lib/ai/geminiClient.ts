@@ -199,7 +199,7 @@ Trả về ĐÚNG cấu trúc JSON sau (không kèm markdown ngoài):
 }
 
 /**
- * Scan receipt image using Gemini Vision OCR or heuristic fallback.
+ * Scan receipt or real-world expense object image using Gemini Vision OCR or heuristic fallback.
  */
 export async function scanReceiptWithAI(
   imageBase64: string,
@@ -210,28 +210,34 @@ export async function scanReceiptWithAI(
   const today = clientDate || new Date().toISOString().split("T")[0];
   const categoriesContext = categories.map((c) => c.name).join(", ");
 
-  const prompt = `Bạn là chuyên gia phân tích hóa đơn, phiếu tính tiền, biên lai thanh toán tại Việt Nam.
+  const prompt = `Bạn là chuyên gia thị giác máy tính và phân tích chi tiêu tài chính thông minh (Multimodal Financial Vision Specialist) tại Việt Nam.
 Ngày hiện tại: ${today}.
-Các danh mục có sẵn: ${categoriesContext}.
+Danh sách danh mục khả dụng của người dùng: [${categoriesContext}].
 
-Hãy phân tích hình ảnh hóa đơn này và trích xuất thông tin dưới dạng JSON chuẩn:
-1. "merchant": Tên cửa hàng, nhà hàng, quán ăn, siêu thị (hoặc chuỗi thương hiệu, ví dụ: "Highlands Coffee", "Cơm tấm Ba Ghiền", "WinMart").
-2. "description": Tóm tắt các món ăn/thức uống hoặc mặt hàng chính trên hóa đơn (ví dụ: "Highlands Coffee - 2 Phin Sữa Đá", "Cơm tấm sườn bì chả").
-3. "amount": TỔNG TIỀN THANH TOÁN CUỐI CÙNG (Grand Total) dạng integer số nguyên VND (loại bỏ mọi ký tự đ, VND, dấu chấm).
-4. "date": Ngày in hóa đơn định dạng YYYY-MM-DD. Nếu không nhìn thấy rõ ngày, dùng "${today}".
-5. "categoryName": Gợi ý danh mục phù hợp nhất từ danh sách trên (ví dụ: "Ăn uống", "Mua sắm", "Di chuyển").
-6. "items": Danh sách món (nếu đọc được rõ) gồm name, quantity, price.
+Hình ảnh người dùng chụp có thể thuộc một trong hai dạng:
+1. HÓA ĐƠN / BIÊN LAI / PHIẾU TÍNH TIỀN / VÉ XE / MÀN HÌNH CHUYỂN KHOẢN (POS, Receipt, Bill, Invoice).
+2. HOẶC ĐỒ VẬT / DỊCH VỤ / BỮA ĂN THỰC TẾ mà người dùng vừa chi tiền mua hoặc sử dụng:
+   - Đồ ăn, đĩa cơm, tô phở, bún, bánh mì, ly cà phê, trà sữa, chai nước, bàn ăn -> Danh mục "Ăn uống" (hoặc tên tương đương trong danh sách).
+   - Xe máy, ô tô, cây xăng, đổ xăng/dầu, vé cầu đường, bãi đỗ xe, chuyến Grab/Be -> Danh mục "Di chuyển" (hoặc "Đi lại").
+   - Quần áo, giày dép, mỹ phẩm, phụ kiện, thiết bị điện tử, đồ gia dụng, gói hàng siêu thị -> Danh mục "Mua sắm".
+   - Hóa đơn điện, nước, internet, truyền hình, phí nhà -> Danh mục "Hóa đơn & Tiện ích".
+   - Vé xem phim, khu vui chơi, du lịch, thể thao, game -> Danh mục "Giải trí".
+   - Thuốc men, khám bệnh, nha khoa, tập gym -> Danh mục "Sức khỏe".
 
-Trả về duy nhất định dạng JSON:
+Nhiệm vụ của bạn:
+1. "categoryName": Xác định và chọn CHÍNH XÁC một danh mục phù hợp nhất từ danh sách [${categoriesContext}].
+2. "description": Tóm tắt ngắn gọn mô tả chi tiêu hoặc tên đồ vật / dịch vụ (ví dụ: "Cà phê muối", "Cơm sườn bì chả", "Đổ xăng xe máy", "Áo thun polo", "Highlands Coffee - 2 Phin Sữa Đá").
+3. "merchant": Tên thương hiệu, nhà hàng hoặc cửa hàng (nếu nhận diện được logo/biển hiệu hoặc tên trên hóa đơn).
+4. "amount": Nếu là hóa đơn có ghi rõ số tiền, trích xuất TỔNG TIỀN THANH TOÁN (integer VND, loại bỏ mọi ký tự đ, dấu chấm). Nếu là ảnh chụp đồ vật không có giá tiền in, trả về 0 (để người dùng tự nhập).
+5. "date": Ngày giao dịch YYYY-MM-DD (nếu không có ngày trên ảnh, dùng "${today}").
+
+Trả về DUY NHẤT một đối tượng JSON:
 {
   "merchant": "Highlands Coffee",
-  "description": "Highlands Coffee - 2 Phin Sữa Đá",
-  "amount": 78000,
+  "description": "Cà phê phin sữa đá",
+  "amount": 35000,
   "date": "${today}",
-  "categoryName": "Ăn uống",
-  "items": [
-    { "name": "Phin Sữa Đá (L)", "quantity": 2, "price": 78000 }
-  ]
+  "categoryName": "Ăn uống"
 }`;
 
   const imagePart = {
@@ -251,12 +257,12 @@ Trả về duy nhất định dạng JSON:
 
       return {
         merchant: parsed.merchant || undefined,
-        description: parsed.description || parsed.merchant || "Hóa đơn thanh toán",
+        description: parsed.description || parsed.merchant || "Chi tiêu qua camera",
         amount: cleanedAmount,
         date: parsed.date || today,
         categoryName: parsed.categoryName || "Ăn uống",
         items: Array.isArray(parsed.items) ? parsed.items : undefined,
-        confidence: cleanedAmount > 0 ? 0.95 : 0.6,
+        confidence: cleanedAmount > 0 ? 0.95 : 0.7,
       };
     } catch (parseErr) {
       console.warn("JSON parse error from Gemini Vision OCR:", parseErr, rawText);
@@ -265,8 +271,8 @@ Trả về duy nhất định dạng JSON:
 
   // Graceful fallback when no key or network issue
   return {
-    merchant: "Hóa đơn đã chụp",
-    description: "Hóa đơn thanh toán",
+    merchant: "Ảnh chụp chi tiêu",
+    description: "Chi tiêu ghi nhận từ camera",
     amount: 0,
     date: today,
     categoryName: "Ăn uống",

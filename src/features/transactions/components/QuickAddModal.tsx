@@ -282,7 +282,7 @@ export function QuickAddModal({
                 <SelectTrigger id="category" className="w-full min-w-0 h-10">
                   <SelectValue placeholder="Chọn danh mục" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="max-h-60">
                   {filteredCategories.map((c) => (
                     <SelectItem key={c.id} value={c.id}>
                       <span className="flex items-center gap-2 min-w-0">
