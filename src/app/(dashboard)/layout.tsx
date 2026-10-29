@@ -11,9 +11,11 @@ import {
   PlusCircle,
   LogOut,
   KeyRound,
+  Camera,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { QuickAddModal } from "@/features/transactions/components/QuickAddModal";
+import { InstantReceiptCaptureModal } from "@/features/transactions/components/InstantReceiptCaptureModal";
 import { ChangePasswordModal } from "@/features/auth/components/ChangePasswordModal";
 import { FloatingAIChatbot } from "@/features/ai/components/FloatingAIChatbot";
 import { Category, User } from "@/types";
@@ -26,6 +28,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [categories, setCategories] = useState<Category[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
+  const [isDirectCameraOpen, setIsDirectCameraOpen] = useState(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
 
   const fetchCategories = useCallback(async () => {
@@ -117,6 +120,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               Hôm nay: {formatVNDate(getVietnamTodayString(), "short")} (Asia/Ho_Chi_Minh)
             </div>
 
+            {/* Quick Direct Camera Button */}
+            <Button
+              onClick={() => setIsDirectCameraOpen(true)}
+              size="sm"
+              variant="outline"
+              className="gap-1.5 font-semibold border-primary/30 text-primary hover:bg-primary/10 shadow-xs cursor-pointer active:scale-95 transition-all"
+              title="Chụp ảnh hóa đơn ngay"
+            >
+              <Camera className="w-4 h-4 text-primary" />
+              <span className="sm:hidden">Chụp ngay</span>
+              <span className="hidden sm:inline">Chụp hóa đơn</span>
+            </Button>
+
             <Button
               onClick={() => setIsQuickAddOpen(true)}
               size="sm"
@@ -192,6 +208,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         onTransactionCreated={() => {
           router.refresh();
           // Dispatch custom event so active pages refresh seamlessly
+          window.dispatchEvent(new Event("pocketflow:transaction-created"));
+        }}
+      />
+
+      {/* Direct Camera Receipt Modal */}
+      <InstantReceiptCaptureModal
+        isOpen={isDirectCameraOpen}
+        onClose={() => setIsDirectCameraOpen(false)}
+        categories={categories}
+        onTransactionCreated={() => {
+          router.refresh();
           window.dispatchEvent(new Event("pocketflow:transaction-created"));
         }}
       />

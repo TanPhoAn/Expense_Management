@@ -43,7 +43,10 @@ export function ReceiptLightboxModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[460px] p-4 sm:p-5 overflow-hidden flex flex-col">
+      <DialogContent
+        overlayClassName="z-[99998]"
+        className="z-[99999] sm:max-w-[460px] p-4 sm:p-5 overflow-hidden flex flex-col shadow-2xl"
+      >
         <DialogHeader className="space-y-1 text-left">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
