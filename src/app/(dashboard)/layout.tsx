@@ -76,7 +76,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   ];
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))] md:pb-0">
+    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-[calc(7.5rem+env(safe-area-inset-bottom,0px))] md:pb-0">
       {/* Top Navigation Bar */}
       <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 pt-safe">
         <div className="container max-w-7xl mx-auto flex h-16 items-center justify-between px-4 sm:px-6">

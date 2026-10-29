@@ -174,16 +174,16 @@ export function FloatingAIChatbot() {
   return (
     <>
       {/* Floating Action Button */}
-      <div className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-40">
+      <div className="fixed bottom-[calc(6.5rem+env(safe-area-inset-bottom,0px))] sm:bottom-6 right-4 sm:right-6 z-40">
         {!isOpen && (
           <button
             type="button"
             onClick={() => setIsOpen(true)}
-            className="group relative flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white rounded-full shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer border border-white/20 select-none animate-in fade-in"
+            className="group relative flex items-center gap-2 px-3.5 py-2.5 sm:px-4 sm:py-3 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white rounded-full shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer border border-white/20 select-none animate-in fade-in"
             title="Mở Trợ lý Chat AI"
           >
             <div className="relative">
-              <Sparkles className="w-5 h-5 text-amber-300 animate-pulse" />
+              <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-amber-300 animate-pulse" />
               <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-indigo-600" />
             </div>
             <span className="text-xs sm:text-sm font-bold tracking-wide">
@@ -195,7 +195,7 @@ export function FloatingAIChatbot() {
 
       {/* Expandable Chat Drawer / Panel */}
       {isOpen && (
-        <div className="fixed bottom-20 sm:bottom-6 right-3 sm:right-6 z-50 w-[94vw] sm:w-[400px] h-[540px] max-h-[82vh] bg-background border border-border/80 shadow-2xl rounded-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] sm:bottom-6 right-3 sm:right-6 z-50 w-[94vw] sm:w-[400px] h-[520px] max-h-[calc(100dvh-5.5rem-env(safe-area-inset-bottom,0px))] bg-background border border-border/80 shadow-2xl rounded-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
           {/* Header */}
           <div className="p-3.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white flex items-center justify-between shrink-0 select-none shadow-sm">
             <div className="flex items-center gap-2.5">

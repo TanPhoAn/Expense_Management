@@ -551,34 +551,6 @@ export default function DashboardPage() {
         </>
       )}
 
-      {/* Mobile Floating Action Bar (< 640px) */}
-      <div className="sm:hidden fixed bottom-6 right-4 z-40 flex items-center gap-2 animate-in fade-in-0 duration-200">
-        <Button
-          size="sm"
-          onClick={() => {
-            setQuickAddDate(undefined);
-            setQuickAddType("EXPENSE");
-            setQuickAddModalOpen(true);
-          }}
-          className="rounded-full shadow-lg bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs px-3.5 py-2 flex items-center gap-1.5 cursor-pointer border border-rose-400/30"
-        >
-          <PlusCircle className="w-4 h-4" />
-          <span>Chi tiêu</span>
-        </Button>
-        <Button
-          size="sm"
-          onClick={() => {
-            setQuickAddDate(undefined);
-            setQuickAddType("INCOME");
-            setQuickAddModalOpen(true);
-          }}
-          className="rounded-full shadow-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs px-3.5 py-2 flex items-center gap-1.5 cursor-pointer border border-emerald-400/30"
-        >
-          <PlusCircle className="w-4 h-4" />
-          <span>Thu nhập</span>
-        </Button>
-      </div>
-
       {/* Quick Add Modal */}
       <QuickAddModal
         isOpen={quickAddModalOpen}
