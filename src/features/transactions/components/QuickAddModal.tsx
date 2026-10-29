@@ -21,10 +21,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { createTransactionSchema, CreateTransactionInput } from "@/lib/validations/transaction.schema";
-import { getVietnamTodayString } from "@/lib/utils/date";
+import { getVietnamTodayString, formatVNDate } from "@/lib/utils/date";
 import { formatNumberVN, sanitizeCurrencyInput, formatVND } from "@/lib/utils/currency";
 import { Category } from "@/types";
-import { Sparkles, Loader2, Check } from "lucide-react";
+import { Sparkles, Loader2, Check, Calendar as CalendarIcon } from "lucide-react";
 import { toast } from "sonner";
 import { ReceiptUploadField } from "@/components/ui/ReceiptUploadField";
 
@@ -279,7 +279,7 @@ export function QuickAddModal({
                 value={watch("categoryId")}
                 onValueChange={(val) => setValue("categoryId", val, { shouldValidate: true })}
               >
-                <SelectTrigger id="category" className="w-full min-w-0">
+                <SelectTrigger id="category" className="w-full min-w-0 h-10">
                   <SelectValue placeholder="Chọn danh mục" />
                 </SelectTrigger>
                 <SelectContent>
@@ -303,12 +303,18 @@ export function QuickAddModal({
 
             <div className="space-y-1 min-w-0">
               <Label htmlFor="transactionDate">Ngày giao dịch</Label>
-              <Input
-                id="transactionDate"
-                type="date"
-                className="w-full min-w-0 max-w-full block px-2.5 text-center sm:text-left"
-                {...register("transactionDate")}
-              />
+              <div className="relative h-10 w-full rounded-md border border-input bg-background/50 px-3 flex items-center justify-between shadow-xs hover:bg-accent/30 transition-colors cursor-pointer overflow-hidden">
+                <span className="text-xs truncate font-medium text-foreground">
+                  {watch("transactionDate") ? formatVNDate(watch("transactionDate"), "short") : "Chọn ngày"}
+                </span>
+                <CalendarIcon className="w-4 h-4 text-muted-foreground shrink-0" />
+                <input
+                  id="transactionDate"
+                  type="date"
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                  {...register("transactionDate")}
+                />
+              </div>
               {errors.transactionDate && (
                 <p className="text-xs text-rose-600">{errors.transactionDate.message}</p>
               )}

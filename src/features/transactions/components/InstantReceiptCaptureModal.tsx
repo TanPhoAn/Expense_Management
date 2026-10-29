@@ -733,12 +733,18 @@ export function InstantReceiptCaptureModal({
 
                 <div className="space-y-1 min-w-0">
                   <label className="text-xs font-semibold text-foreground">Ngày giao dịch</label>
-                  <Input
-                    type="date"
-                    value={transactionDate}
-                    onChange={(e) => setTransactionDate(e.target.value)}
-                    className="text-xs h-10 w-full min-w-0 max-w-full block px-2.5 text-center sm:text-left"
-                  />
+                  <div className="relative h-10 w-full rounded-md border border-input bg-background/50 px-3 flex items-center justify-between shadow-xs hover:bg-accent/30 transition-colors cursor-pointer overflow-hidden">
+                    <span className="text-xs truncate font-medium text-foreground">
+                      {transactionDate ? formatVNDate(transactionDate, "short") : "Chọn ngày"}
+                    </span>
+                    <CalendarIcon className="w-4 h-4 text-muted-foreground shrink-0" />
+                    <input
+                      type="date"
+                      value={transactionDate}
+                      onChange={(e) => setTransactionDate(e.target.value)}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                    />
+                  </div>
                 </div>
               </div>
 
