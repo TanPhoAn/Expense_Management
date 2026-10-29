@@ -167,7 +167,7 @@ export default function DashboardPage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
-            Bảng điều khiển tài chính
+            Tình hình tài chính :)
           </h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
             Dòng tiền thực tế & thị trường trực tiếp theo giờ Việt Nam
