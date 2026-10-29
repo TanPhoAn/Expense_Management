@@ -23,6 +23,7 @@ import { formatVNDate, getVietnamTodayString } from "@/lib/utils/date";
 import { getReceiptThumbnailUrl } from "@/lib/utils/image";
 import { Transaction } from "@/types";
 import { LightboxData } from "@/components/ui/ReceiptLightboxModal";
+import { CategoryIcon } from "@/features/categories/components/CategoryIcon";
 import { cn } from "@/lib/utils";
 
 interface CalendarCell {
@@ -317,8 +318,23 @@ export function DashboardCalendar({
                   )}
                 </div>
 
-                {/* Day Content: Avatar Stack & Micro status indicators */}
-                <div className="w-full flex flex-col items-center justify-center min-h-[22px] pb-0.5 overflow-hidden">
+                {/* Mobile View Indicators (< 640px) */}
+                <div className="sm:hidden flex items-center justify-center gap-1 w-full min-h-[18px]">
+                  {hasTransactions ? (
+                    <div className="flex items-center gap-1">
+                      {hasIncome && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-xs" />}
+                      {hasExpense && <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shadow-xs" />}
+                      {dayTxs.length > 2 && (
+                        <span className="text-[8px] font-bold text-muted-foreground">
+                          {dayTxs.length}
+                        </span>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
+
+                {/* Desktop View Content (>= 640px): Avatar Stack & Micro status indicators */}
+                <div className="hidden sm:flex w-full flex-col items-center justify-center min-h-[22px] pb-0.5 overflow-hidden">
                   {hasTransactions ? (
                     <div className="flex flex-col items-center gap-0.5 w-full overflow-hidden">
                       {/* Avatar Stack with strictly constrained dimensions */}
@@ -390,7 +406,10 @@ export function DashboardCalendar({
             />
 
             {/* Sheet / Dialog Modal Box */}
-            <div className="relative w-full sm:max-w-md bg-background border rounded-t-2xl sm:rounded-2xl shadow-2xl p-4 sm:p-6 z-10 animate-in slide-in-from-bottom duration-200 max-h-[85vh] flex flex-col overflow-hidden">
+            <div className="relative w-full sm:max-w-md bg-background border rounded-t-3xl sm:rounded-2xl shadow-2xl p-4 sm:p-6 z-10 animate-in slide-in-from-bottom duration-200 max-h-[85vh] flex flex-col overflow-hidden">
+              {/* Mobile Drawer Pull Indicator */}
+              <div className="w-10 h-1 bg-muted-foreground/30 rounded-full mx-auto mb-2 sm:hidden shrink-0" />
+
               {/* Header */}
               <div className="flex items-center justify-between pb-3 border-b shrink-0">
                 <div className="flex items-center gap-2">
@@ -425,7 +444,7 @@ export function DashboardCalendar({
                     <TrendingDown className="w-3.5 h-3.5" />
                     <span>Chi tiêu</span>
                   </div>
-                  <span className="text-xs font-bold text-rose-600 dark:text-rose-400">
+                  <span className="text-xs font-bold font-mono tabular-nums text-rose-600 dark:text-rose-400">
                     -{formatVND(daySummary.expense)}
                   </span>
                 </div>
@@ -435,7 +454,7 @@ export function DashboardCalendar({
                     <TrendingUp className="w-3.5 h-3.5" />
                     <span>Thu nhập</span>
                   </div>
-                  <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                  <span className="text-xs font-bold font-mono tabular-nums text-emerald-600 dark:text-emerald-400">
                     +{formatVND(daySummary.income)}
                   </span>
                 </div>
@@ -480,10 +499,14 @@ export function DashboardCalendar({
                         </button>
                       ) : (
                         <div
-                          className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-xs shrink-0"
+                          className="w-9 h-9 rounded-full flex items-center justify-center shadow-xs shrink-0 text-white"
                           style={{ backgroundColor: tx.category?.color || "#64748b" }}
                         >
-                          {tx.category?.name ? tx.category.name.charAt(0).toUpperCase() : "T"}
+                          <CategoryIcon
+                            categoryName={tx.category?.name}
+                            iconName={tx.category?.icon}
+                            className="w-4 h-4 text-white"
+                          />
                         </div>
                       )}
 
@@ -500,7 +523,7 @@ export function DashboardCalendar({
                     <div className="text-right shrink-0 pl-2">
                       <p
                         className={cn(
-                          "font-bold text-xs sm:text-sm",
+                          "font-bold font-mono tabular-nums text-xs sm:text-sm",
                           tx.type === "INCOME"
                             ? "text-emerald-600 dark:text-emerald-400"
                             : "text-rose-600 dark:text-rose-400"
