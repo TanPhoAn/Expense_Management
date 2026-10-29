@@ -17,6 +17,7 @@ import {
   X,
   Plus,
   Image as ImageIcon,
+  Download,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -43,6 +44,7 @@ import { getReceiptThumbnailUrl } from "@/lib/utils/image";
 import { ReceiptLightboxModal, LightboxData } from "@/components/ui/ReceiptLightboxModal";
 import { ReceiptUploadField } from "@/components/ui/ReceiptUploadField";
 import { CategoryIcon } from "@/features/categories/components/CategoryIcon";
+import { ExportModal } from "@/features/transactions/components/ExportModal";
 import {
   calculateTransactionsSummary,
   getQuickDateRange,
@@ -67,6 +69,7 @@ export default function TransactionsPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>("ALL");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [exportModalOpen, setExportModalOpen] = useState(false);
 
   // Edit State
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
@@ -251,6 +254,19 @@ export default function TransactionsPage() {
           <p className="text-sm text-muted-foreground mt-0.5">
             Tìm kiếm, lọc và quản lý toàn bộ các giao dịch tài chính
           </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setExportModalOpen(true)}
+            className="text-xs h-9 gap-1.5 border-border/80 hover:bg-muted font-semibold shadow-xs"
+          >
+            <Download className="w-3.5 h-3.5 text-primary" />
+            <span>Xuất báo cáo & Sao kê</span>
+          </Button>
         </div>
       </div>
 
@@ -1106,6 +1122,15 @@ export default function TransactionsPage() {
         data={lightboxData}
         isOpen={!!lightboxData}
         onClose={() => setLightboxData(null)}
+      />
+
+      {/* Export & Financial Statement Modal */}
+      <ExportModal
+        isOpen={exportModalOpen}
+        onClose={() => setExportModalOpen(false)}
+        categories={categories}
+        defaultStartDate={startDate}
+        defaultEndDate={endDate}
       />
     </div>
   );

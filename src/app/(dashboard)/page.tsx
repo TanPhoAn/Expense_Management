@@ -17,6 +17,7 @@ import {
   EyeOff,
   RotateCcw,
   Image as ImageIcon,
+  Download,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -54,6 +55,7 @@ import {
   Category,
 } from "@/types";
 import { QuickAddModal } from "@/features/transactions/components/QuickAddModal";
+import { ExportModal } from "@/features/transactions/components/ExportModal";
 import { cn } from "@/lib/utils";
 
 export default function DashboardPage() {
@@ -71,6 +73,7 @@ export default function DashboardPage() {
   const [lightboxData, setLightboxData] = useState<LightboxData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isPrivacyMode, setIsPrivacyMode] = useState(false);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
 
   // Sync privacy mode from localStorage
   useEffect(() => {
@@ -251,6 +254,20 @@ export default function DashboardPage() {
             title={isPrivacyMode ? "Đang ẩn số tiền (Nhấn để hiện)" : "Nhấn để ẩn số tiền (Chế độ riêng tư)"}
           >
             {isPrivacyMode ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </Button>
+
+          {/* Export & Financial Statement Button */}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setExportModalOpen(true)}
+            className="h-9 px-2.5 sm:px-3 rounded-xl border border-border text-xs font-semibold hover:bg-muted text-foreground flex items-center gap-1.5 cursor-pointer shadow-xs shrink-0"
+            title="Xuất Báo cáo & Sao kê tài chính"
+          >
+            <Download className="w-3.5 h-3.5 text-primary" />
+            <span className="hidden sm:inline">Sao kê / Xuất file</span>
+            <span className="sm:hidden text-[11px]">Sao kê</span>
           </Button>
 
           {/* Desktop Quick Add Buttons (Hidden on mobile to save space, powered by mobile floating bar) */}
@@ -613,6 +630,14 @@ export default function DashboardPage() {
         data={lightboxData}
         isOpen={!!lightboxData}
         onClose={() => setLightboxData(null)}
+      />
+
+      {/* Export & Financial Statement Modal */}
+      <ExportModal
+        isOpen={exportModalOpen}
+        onClose={() => setExportModalOpen(false)}
+        categories={categories}
+        defaultMonth={selectedMonth}
       />
     </div>
   );

@@ -172,3 +172,75 @@ export interface SavingsGoalLog {
   createdAt: Date;
 }
 
+// -----------------------------------------------------------------------------
+// Financial Statement & Export Types (Phase 25)
+// -----------------------------------------------------------------------------
+export interface StatementUser {
+  name: string;
+  email: string;
+  joinedDate: string;
+}
+
+export interface StatementSummary {
+  totalIncome: number;
+  totalExpense: number;
+  netSavings: number;
+  savingsRate: number;
+  transactionCount: number;
+  dailyAverage: number;
+  daysInPeriod: number;
+}
+
+export interface StatementTopExpense {
+  id: string;
+  description: string;
+  categoryName: string;
+  categoryColor: string;
+  categoryIcon: string;
+  amount: number;
+  transactionDate: string;
+}
+
+export interface StatementCategoryBreakdown {
+  id: string;
+  name: string;
+  icon: string;
+  color: string;
+  amount: number;
+  percentage: number;
+  count: number;
+}
+
+export interface StatementTransactionItem {
+  id: string;
+  transactionDate: string;
+  time: string;
+  type: 'INCOME' | 'EXPENSE';
+  categoryName: string;
+  categoryColor: string;
+  categoryIcon: string;
+  amount: number;
+  description: string;
+  note?: string | null;
+  receiptUrl?: string | null;
+}
+
+export interface StatementData {
+  user: StatementUser;
+  period: {
+    startDate: string;
+    endDate: string;
+    label: string;
+  };
+  summary: StatementSummary;
+  topExpenses: StatementTopExpense[];
+  categoryBreakdown: StatementCategoryBreakdown[];
+  transactions: StatementTransactionItem[];
+  metadata: {
+    generatedAt: string;
+    statementId: string;
+    securityHash: string;
+  };
+}
+
+
