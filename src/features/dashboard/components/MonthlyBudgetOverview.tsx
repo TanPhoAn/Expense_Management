@@ -107,20 +107,6 @@ export function MonthlyBudgetOverview({
             </p>
           </div>
         </div>
-
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => {
-            setEditingBudget(null);
-            setIsModalOpen(true);
-          }}
-          className="gap-1 text-xs h-8 px-2.5 font-semibold border-primary/30 text-primary hover:bg-primary/10 cursor-pointer shrink-0"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">Đặt ngân sách</span>
-          <span className="sm:hidden">Thêm</span>
-        </Button>
       </CardHeader>
 
       <CardContent className="p-4 sm:p-5 space-y-4">
