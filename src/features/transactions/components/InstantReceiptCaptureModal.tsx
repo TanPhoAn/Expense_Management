@@ -538,15 +538,18 @@ export function InstantReceiptCaptureModal({
                 <div className="absolute inset-0 bg-white z-30 pointer-events-none animate-out fade-out duration-150" />
               )}
 
-              {/* Square framing guide overlay */}
+              {/* Square framing guide overlay with pitch-black cutout mask */}
               {!cameraError && !isLoadingCamera && (
-                <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                  <div className="w-[78vw] max-w-[320px] aspect-square border-2 border-white/60 rounded-2xl relative shadow-2xl">
-                    <div className="absolute top-0 left-0 w-5 h-5 border-t-4 border-l-4 border-primary -mt-1 -ml-1 rounded-tl-lg" />
-                    <div className="absolute top-0 right-0 w-5 h-5 border-t-4 border-r-4 border-primary -mt-1 -mr-1 rounded-tr-lg" />
-                    <div className="absolute bottom-0 left-0 w-5 h-5 border-b-4 border-l-4 border-primary -mb-1 -ml-1 rounded-bl-lg" />
-                    <div className="absolute bottom-0 right-0 w-5 h-5 border-b-4 border-r-4 border-primary -mb-1 -mr-1 rounded-br-lg" />
-                    <span className="absolute bottom-2 inset-x-0 text-center text-[11px] font-semibold text-white/80 drop-shadow-md">
+                <div className="absolute inset-0 pointer-events-none flex items-center justify-center overflow-hidden z-10">
+                  <div className="w-[86vw] sm:w-[350px] max-w-[350px] aspect-square border-2 border-white/70 rounded-2xl relative shadow-[0_0_0_9999px_rgba(0,0,0,0.94)]">
+                    {/* 4 Corner Accents */}
+                    <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-primary -mt-1 -ml-1 rounded-tl-lg" />
+                    <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-primary -mt-1 -mr-1 rounded-tr-lg" />
+                    <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-primary -mb-1 -ml-1 rounded-bl-lg" />
+                    <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-primary -mb-1 -mr-1 rounded-br-lg" />
+                    
+                    {/* Helper Hint */}
+                    <span className="absolute bottom-3 inset-x-0 text-center text-xs font-semibold text-white/90 drop-shadow-md">
                       Đặt hóa đơn vào trong khung
                     </span>
                   </div>
