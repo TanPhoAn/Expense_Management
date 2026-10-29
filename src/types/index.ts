@@ -144,3 +144,31 @@ export interface FinancialHealthData {
   source: 'ai' | 'fallback';
 }
 
+export interface SavingsGoal {
+  id: string;
+  userId: string;
+  name: string;
+  targetAmount: string;
+  currentAmount: string;
+  targetDate?: string | null;
+  color: string;
+  icon: string;
+  isCompleted: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  // Computed fields
+  percentage: number;
+  remainingAmount: string;
+  daysLeft?: number | null;
+}
+
+export interface SavingsGoalLog {
+  id: string;
+  goalId: string;
+  userId: string;
+  type: 'DEPOSIT' | 'WITHDRAW';
+  amount: string;
+  note?: string | null;
+  createdAt: Date;
+}
+

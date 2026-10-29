@@ -169,6 +169,67 @@ export const budgets = pgTable(
 );
 
 // -----------------------------------------------------------------------------
+// Savings Goals Table
+// -----------------------------------------------------------------------------
+export const savingsGoals = pgTable(
+  'savings_goals',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    name: varchar('name', { length: 150 }).notNull(),
+    targetAmount: numeric('target_amount', { precision: 15, scale: 2 }).notNull(),
+    currentAmount: numeric('current_amount', { precision: 15, scale: 2 })
+      .notNull()
+      .default('0'),
+    targetDate: date('target_date'),
+    color: varchar('color', { length: 30 }).notNull().default('#10b981'),
+    icon: varchar('icon', { length: 50 }).notNull().default('PiggyBank'),
+    isCompleted: boolean('is_completed').notNull().default(false),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => ({
+    targetAmountCheck: check('savings_goals_target_positive_check', sql`${table.targetAmount} > 0`),
+    currentAmountCheck: check('savings_goals_current_non_negative_check', sql`${table.currentAmount} >= 0`),
+    userCompletedIdx: index('savings_goals_user_completed_idx').on(table.userId, table.isCompleted),
+  })
+);
+
+// -----------------------------------------------------------------------------
+// Savings Goal Logs Table
+// -----------------------------------------------------------------------------
+export const savingsGoalLogs = pgTable(
+  'savings_goal_logs',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    goalId: uuid('goal_id')
+      .notNull()
+      .references(() => savingsGoals.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    type: varchar('type', { length: 20 }).notNull(), // 'DEPOSIT' | 'WITHDRAW'
+    amount: numeric('amount', { precision: 15, scale: 2 }).notNull(),
+    note: varchar('note', { length: 255 }),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => ({
+    amountCheck: check('savings_goal_logs_amount_positive_check', sql`${table.amount} > 0`),
+    goalCreatedIdx: index('savings_goal_logs_goal_created_idx').on(table.goalId, table.createdAt.desc()),
+    userIdIdx: index('savings_goal_logs_user_id_idx').on(table.userId),
+  })
+);
+
+// -----------------------------------------------------------------------------
 // Drizzle Relations
 // -----------------------------------------------------------------------------
 export const usersRelations = relations(users, ({ many }) => ({
@@ -176,6 +237,8 @@ export const usersRelations = relations(users, ({ many }) => ({
   transactions: many(transactions),
   passwordResetTokens: many(passwordResetTokens),
   budgets: many(budgets),
+  savingsGoals: many(savingsGoals),
+  savingsGoalLogs: many(savingsGoalLogs),
 }));
 
 export const passwordResetTokensRelations = relations(passwordResetTokens, ({ one }) => ({
@@ -216,6 +279,25 @@ export const budgetsRelations = relations(budgets, ({ one }) => ({
   }),
 }));
 
+export const savingsGoalsRelations = relations(savingsGoals, ({ one, many }) => ({
+  user: one(users, {
+    fields: [savingsGoals.userId],
+    references: [users.id],
+  }),
+  logs: many(savingsGoalLogs),
+}));
+
+export const savingsGoalLogsRelations = relations(savingsGoalLogs, ({ one }) => ({
+  goal: one(savingsGoals, {
+    fields: [savingsGoalLogs.goalId],
+    references: [savingsGoals.id],
+  }),
+  user: one(users, {
+    fields: [savingsGoalLogs.userId],
+    references: [users.id],
+  }),
+}));
+
 export type InsertUser = typeof users.$inferInsert;
 export type SelectUser = typeof users.$inferSelect;
 export type InsertCategory = typeof categories.$inferInsert;
@@ -226,3 +308,7 @@ export type InsertPasswordResetToken = typeof passwordResetTokens.$inferInsert;
 export type SelectPasswordResetToken = typeof passwordResetTokens.$inferSelect;
 export type InsertBudget = typeof budgets.$inferInsert;
 export type SelectBudget = typeof budgets.$inferSelect;
+export type InsertSavingsGoal = typeof savingsGoals.$inferInsert;
+export type SelectSavingsGoal = typeof savingsGoals.$inferSelect;
+export type InsertSavingsGoalLog = typeof savingsGoalLogs.$inferInsert;
+export type SelectSavingsGoalLog = typeof savingsGoalLogs.$inferSelect;

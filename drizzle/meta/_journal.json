@@ -29,6 +29,13 @@
       "when": 1793265166464,
       "tag": "0003_slow_kate_bishop",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793270574520,
+      "tag": "0004_nasty_vindicator",
+      "breakpoints": true
     }
   ]
 }

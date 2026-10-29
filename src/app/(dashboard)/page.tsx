@@ -26,6 +26,7 @@ import { DashboardCharts } from "@/features/dashboard/components/DashboardCharts
 import { DashboardCalendar } from "@/features/dashboard/components/DashboardCalendar";
 import { MonthlyBudgetOverview } from "@/features/dashboard/components/MonthlyBudgetOverview";
 import { FinancialHealthCard } from "@/features/dashboard/components/FinancialHealthCard";
+import { SavingsGoalsWidget } from "@/features/dashboard/components/SavingsGoalsWidget";
 import { MarketPricesWidget } from "@/features/dashboard/components/MarketPricesWidget";
 import { CategoryIcon } from "@/features/categories/components/CategoryIcon";
 import { formatVND } from "@/lib/utils/currency";
@@ -452,6 +453,9 @@ export default function DashboardPage() {
               isPrivacyMode={isPrivacyMode}
             />
           </div>
+
+          {/* Sinking Funds & Savings Goals */}
+          <SavingsGoalsWidget isPrivacyMode={isPrivacyMode} />
 
           {/* Visual Analytics Charts */}
           <DashboardCharts
