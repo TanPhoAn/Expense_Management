@@ -22,6 +22,13 @@
       "when": 1793131037498,
       "tag": "0002_abnormal_wallflower",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793265166464,
+      "tag": "0003_slow_kate_bishop",
+      "breakpoints": true
     }
   ]
 }

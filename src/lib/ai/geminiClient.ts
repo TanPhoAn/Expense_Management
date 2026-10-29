@@ -273,3 +273,96 @@ Trả về duy nhất định dạng JSON:
     confidence: 0.3,
   };
 }
+
+export interface HealthInsightsInput {
+  month: string;
+  income: number;
+  expense: number;
+  score: number;
+  gradeLabel: string;
+  topCategories: Array<{ name: string; amount: number; percentage: number }>;
+  overspentCategories: Array<{ name: string; overspentAmount: number }>;
+}
+
+export interface HealthInsightsOutput {
+  highlight: string;
+  warning: string;
+  recommendation: string;
+}
+
+export async function generateFinancialHealthInsights(
+  input: HealthInsightsInput
+): Promise<HealthInsightsOutput> {
+  const { month, income, expense, score, gradeLabel, topCategories, overspentCategories } = input;
+
+  const prompt = `Bạn là cố vấn tài chính cá nhân Fintech chuyên nghiệp tại Việt Nam.
+Hãy phân tích dữ liệu tài chính tháng ${month} của người dùng ứng dụng PocketFlow:
+- Điểm sức khỏe tài chính: ${score}/100 (Xếp loại: ${gradeLabel})
+- Tổng thu nhập: ${formatVND(income)}
+- Tổng chi tiêu: ${formatVND(expense)}
+- Top danh mục chi nhiều nhất: ${
+    topCategories.length > 0
+      ? topCategories.map((c) => `${c.name} (${formatVND(c.amount)} - ${c.percentage}%)`).join(", ")
+      : "Chưa có"
+  }
+- Danh mục vượt trần ngân sách: ${
+    overspentCategories.length > 0
+      ? overspentCategories.map((c) => `${c.name} (vượt ${formatVND(c.overspentAmount)})`).join(", ")
+      : "Không có danh mục nào bị vượt"
+  }
+
+Yêu cầu trả về DUY NHẤT một chuỗi JSON chuẩn (không kèm markdown ngoài) theo cấu trúc:
+{
+  "highlight": "1 câu khen ngợi điểm sáng hoặc thói quen tích cực nhận thấy trong tháng",
+  "warning": "1 câu cảnh báo súc tích về danh mục ngốn nhiều tiền hoặc nguy cơ bội chi",
+  "recommendation": "1 câu khuyên hành động thực tế, cụ thể để tháng tới tối ưu dòng tiền"
+}`;
+
+  const rawText = await generateContentWithFallback([prompt]);
+
+  if (rawText) {
+    try {
+      const cleanJson = cleanJsonText(rawText);
+      const parsed = JSON.parse(cleanJson);
+      if (parsed.highlight && parsed.warning && parsed.recommendation) {
+        return {
+          highlight: String(parsed.highlight).trim(),
+          warning: String(parsed.warning).trim(),
+          recommendation: String(parsed.recommendation).trim(),
+        };
+      }
+    } catch (parseErr) {
+      console.warn("JSON parse error from Gemini Health Insights:", parseErr, rawText);
+    }
+  }
+
+  // Deterministic Fallback based on financial metrics
+  let fallbackHighlight = "Bạn đang chủ động theo dõi và ghi chép chi tiêu để quản lý tài chính chuẩn mực.";
+  if (score >= 85) {
+    fallbackHighlight = `Xuất sắc! Dòng tiền tháng ${month} thặng dư tốt, bạn đang giữ kỷ luật tiết kiệm tuyệt vời.`;
+  } else if (score >= 70) {
+    fallbackHighlight = "Tỷ lệ chi tiêu duy trì ổn định trong vùng an toàn so với thu nhập.";
+  }
+
+  let fallbackWarning = "Các khoản chi nhỏ lẻ phát sinh hàng ngày có thể tích tụ thành số tiền lớn.";
+  if (overspentCategories.length > 0) {
+    fallbackWarning = `Có ${overspentCategories.length} danh mục đã vượt trần ngân sách (${overspentCategories.map((c) => c.name).join(", ")}).`;
+  } else if (expense > income) {
+    fallbackWarning = "Tổng chi tiêu tháng này đang lớn hơn thu nhập, cảnh báo nguy cơ thâm hụt số dư.";
+  } else if (topCategories[0] && topCategories[0].percentage > 45) {
+    fallbackWarning = `Danh mục ${topCategories[0].name} đang chiếm tới ${topCategories[0].percentage}% tổng chi tiêu của bạn.`;
+  }
+
+  let fallbackRecommendation = "Áp dụng quy tắc 50/30/20: trích tối thiểu 20% thu nhập vào quỹ tiết kiệm ngay khi nhận lương.";
+  if (overspentCategories.length > 0) {
+    fallbackRecommendation = "Hãy cân nhắc hạ bớt tần suất ăn ngoài hoặc mua sắm để kéo ngân sách về mức an toàn.";
+  } else if (score >= 80) {
+    fallbackRecommendation = "Duy trì phong độ hiện tại và trích phần tiền nhàn rỗi gửi tiết kiệm tích lũy sinh lời.";
+  }
+
+  return {
+    highlight: fallbackHighlight,
+    warning: fallbackWarning,
+    recommendation: fallbackRecommendation,
+  };
+}

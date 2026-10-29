@@ -24,6 +24,8 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DashboardCharts } from "@/features/dashboard/components/DashboardCharts";
 import { DashboardCalendar } from "@/features/dashboard/components/DashboardCalendar";
+import { MonthlyBudgetOverview } from "@/features/dashboard/components/MonthlyBudgetOverview";
+import { FinancialHealthCard } from "@/features/dashboard/components/FinancialHealthCard";
 import { MarketPricesWidget } from "@/features/dashboard/components/MarketPricesWidget";
 import { CategoryIcon } from "@/features/categories/components/CategoryIcon";
 import { formatVND } from "@/lib/utils/currency";
@@ -437,6 +439,19 @@ export default function DashboardPage() {
             }}
             onPreviewReceipt={(data) => setLightboxData(data)}
           />
+
+          {/* Intelligent Monthly Budgets & AI Financial Health Score */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+            <MonthlyBudgetOverview
+              month={selectedMonth}
+              categories={categories}
+              isPrivacyMode={isPrivacyMode}
+            />
+            <FinancialHealthCard
+              month={selectedMonth}
+              isPrivacyMode={isPrivacyMode}
+            />
+          </div>
 
           {/* Visual Analytics Charts */}
           <DashboardCharts

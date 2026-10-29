@@ -99,3 +99,48 @@ export interface MarketPricesData {
   isStale: boolean;
 }
 
+export type BudgetStatus = 'SAFE' | 'WARNING' | 'EXCEEDED';
+
+export interface Budget {
+  id: string;
+  userId: string;
+  categoryId: string;
+  month: string; // YYYY-MM
+  amount: string; // VND string
+  createdAt: Date;
+  updatedAt: Date;
+  category?: Category;
+  // Computed fields
+  budgetAmount?: string;
+  spentAmount?: string;
+  remainingAmount?: string;
+  percentage?: number;
+  status?: BudgetStatus;
+  projectedOverspent?: {
+    isProjectedToOverspend: boolean;
+    projectedDate?: string;
+    projectedMonthEndAmount?: string;
+  };
+}
+
+export type HealthScoreGrade = 'EXCELLENT' | 'GOOD' | 'FAIR' | 'AT_RISK';
+
+export interface FinancialHealthData {
+  score: number; // 0 - 100
+  grade: HealthScoreGrade;
+  gradeLabel: string;
+  metrics: {
+    income: string;
+    expense: string;
+    savingsRate: number; // percentage
+    budgetAdherenceRate: number; // percentage
+    hasOverspentBudget: boolean;
+  };
+  aiInsights: {
+    highlight: string;
+    warning: string;
+    recommendation: string;
+  };
+  source: 'ai' | 'fallback';
+}
+

@@ -135,12 +135,47 @@ export const transactions = pgTable(
 );
 
 // -----------------------------------------------------------------------------
+// Budgets Table
+// -----------------------------------------------------------------------------
+export const budgets = pgTable(
+  'budgets',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    categoryId: uuid('category_id')
+      .notNull()
+      .references(() => categories.id, { onDelete: 'cascade' }),
+    month: varchar('month', { length: 7 }).notNull(), // format 'YYYY-MM'
+    amount: numeric('amount', { precision: 15, scale: 2 }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => ({
+    userCatMonthUniqueIdx: uniqueIndex('budgets_user_cat_month_unique_idx').on(
+      table.userId,
+      table.categoryId,
+      table.month
+    ),
+    userMonthIdx: index('budgets_user_month_idx').on(table.userId, table.month),
+    amountCheck: check('budgets_amount_positive_check', sql`${table.amount} > 0`),
+  })
+);
+
+// -----------------------------------------------------------------------------
 // Drizzle Relations
 // -----------------------------------------------------------------------------
 export const usersRelations = relations(users, ({ many }) => ({
   categories: many(categories),
   transactions: many(transactions),
   passwordResetTokens: many(passwordResetTokens),
+  budgets: many(budgets),
 }));
 
 export const passwordResetTokensRelations = relations(passwordResetTokens, ({ one }) => ({
@@ -156,6 +191,7 @@ export const categoriesRelations = relations(categories, ({ one, many }) => ({
     references: [users.id],
   }),
   transactions: many(transactions),
+  budgets: many(budgets),
 }));
 
 export const transactionsRelations = relations(transactions, ({ one }) => ({
@@ -169,6 +205,17 @@ export const transactionsRelations = relations(transactions, ({ one }) => ({
   }),
 }));
 
+export const budgetsRelations = relations(budgets, ({ one }) => ({
+  user: one(users, {
+    fields: [budgets.userId],
+    references: [users.id],
+  }),
+  category: one(categories, {
+    fields: [budgets.categoryId],
+    references: [categories.id],
+  }),
+}));
+
 export type InsertUser = typeof users.$inferInsert;
 export type SelectUser = typeof users.$inferSelect;
 export type InsertCategory = typeof categories.$inferInsert;
@@ -177,3 +224,5 @@ export type InsertTransaction = typeof transactions.$inferInsert;
 export type SelectTransaction = typeof transactions.$inferSelect;
 export type InsertPasswordResetToken = typeof passwordResetTokens.$inferInsert;
 export type SelectPasswordResetToken = typeof passwordResetTokens.$inferSelect;
+export type InsertBudget = typeof budgets.$inferInsert;
+export type SelectBudget = typeof budgets.$inferSelect;
