@@ -101,6 +101,33 @@ export interface MarketPricesData {
   isStale: boolean;
 }
 
+export interface GoldPriceHistoryItem {
+  id?: string;
+  date: string; // e.g. "26/10"
+  fullDate: string; // e.g. "26/10/2026"
+  buyPrice: number;
+  sellPrice: number;
+  spread: number;
+  changeAmount?: number;
+  changePercentage?: number;
+}
+
+export interface GoldPriceHistorySummary {
+  currentBuy: number;
+  currentSell: number;
+  currentSpread: number;
+  weekHigh: number;
+  weekLow: number;
+  weekTrend: 'UP' | 'DOWN' | 'UNCHANGED';
+  weekChangeAmount: number;
+  weekChangePercentage: number;
+}
+
+export interface GoldPriceHistoryResponse {
+  history: GoldPriceHistoryItem[];
+  summary: GoldPriceHistorySummary;
+}
+
 export type BudgetStatus = 'SAFE' | 'WARNING' | 'EXCEEDED';
 
 export interface Budget {

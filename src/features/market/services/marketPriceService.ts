@@ -1,5 +1,13 @@
 import https from "node:https";
-import { MarketPricesData } from "@/types";
+import { db } from "@/lib/db";
+import { goldPriceHistory } from "@/lib/db/schema";
+import { desc, asc, gte } from "drizzle-orm";
+import { MarketPricesData, GoldPriceHistoryItem, GoldPriceHistoryResponse } from "@/types";
+import { VIETNAM_TIMEZONE } from "@/lib/utils/date";
+import {
+  calculateGoldTrendMetrics,
+  generateFallbackGoldHistory,
+} from "../utils/goldHistoryHelpers";
 import {
   parseSjcGoldJson,
   parseSjcGoldXml,
@@ -212,9 +220,157 @@ export async function getMarketPrices(forceRefresh = false): Promise<MarketPrice
     };
     lastFetchTime = now;
 
+    // Record snapshot to database if valid gold price
+    if (gold && gold.buyPrice > 0 && gold.sellPrice > 0) {
+      recordGoldSnapshot(gold);
+    }
+
     return cachedData;
   } catch (error) {
     console.warn("Market prices fetch error, using fallback:", error);
     return cachedData || fallback;
   }
+}
+
+/**
+ * Safely saves gold price snapshot to database when price changes or 12h interval passes.
+ */
+async function recordGoldSnapshot(gold: {
+  buyPrice: number;
+  sellPrice: number;
+  spread: number;
+  source?: string;
+}) {
+  try {
+    if (!gold || gold.buyPrice <= 0 || gold.sellPrice <= 0) return;
+
+    const [latest] = await db
+      .select()
+      .from(goldPriceHistory)
+      .orderBy(desc(goldPriceHistory.recordedAt))
+      .limit(1);
+
+    const isPriceChanged =
+      !latest ||
+      latest.buyPrice !== gold.buyPrice ||
+      latest.sellPrice !== gold.sellPrice;
+    const isIntervalPassed =
+      latest && Date.now() - new Date(latest.recordedAt).getTime() > 12 * 60 * 60 * 1000;
+
+    if (isPriceChanged || isIntervalPassed) {
+      await db.insert(goldPriceHistory).values({
+        buyPrice: gold.buyPrice,
+        sellPrice: gold.sellPrice,
+        spread: gold.spread || gold.sellPrice - gold.buyPrice,
+        source: gold.source || "SJC",
+      });
+    }
+  } catch (err) {
+    // Non-blocking: background snapshot recording failure shouldn't fail API response
+    console.warn("Gold snapshot saving warning:", err);
+  }
+}
+
+/**
+ * Get SJC Gold Price History grouped by day for N days.
+ * Includes benchmark fallback if database history has fewer points than requested.
+ */
+export async function getGoldPriceHistory(days: number = 7): Promise<GoldPriceHistoryResponse> {
+  const currentPrices = await getMarketPrices();
+  const latestBuy = currentPrices.gold.buyPrice || 87500000;
+  const latestSell = currentPrices.gold.sellPrice || 89500000;
+
+  try {
+    const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    const dbRows = await db
+      .select()
+      .from(goldPriceHistory)
+      .where(gte(goldPriceHistory.recordedAt, cutoffDate))
+      .orderBy(asc(goldPriceHistory.recordedAt));
+
+    // If database has sufficient records, format them into daily points
+    if (dbRows && dbRows.length >= Math.min(days, 4)) {
+      const dateMap = new Map<string, GoldPriceHistoryItem>();
+
+      for (const row of dbRows) {
+        const d = new Date(row.recordedAt);
+        const dayStr = new Intl.DateTimeFormat("vi-VN", {
+          timeZone: VIETNAM_TIMEZONE,
+          day: "2-digit",
+          month: "2-digit",
+        }).format(d);
+        const fullDateStr = new Intl.DateTimeFormat("vi-VN", {
+          timeZone: VIETNAM_TIMEZONE,
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        }).format(d);
+
+        dateMap.set(dayStr, {
+          id: row.id,
+          date: dayStr,
+          fullDate: fullDateStr,
+          buyPrice: row.buyPrice,
+          sellPrice: row.sellPrice,
+          spread: row.spread,
+        });
+      }
+
+      const history = Array.from(dateMap.values());
+
+      // Ensure today is the last item
+      const todayStr = new Intl.DateTimeFormat("vi-VN", {
+        timeZone: VIETNAM_TIMEZONE,
+        day: "2-digit",
+        month: "2-digit",
+      }).format(new Date());
+
+      if (!dateMap.has(todayStr)) {
+        history.push({
+          date: todayStr,
+          fullDate: new Intl.DateTimeFormat("vi-VN", {
+            timeZone: VIETNAM_TIMEZONE,
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+          }).format(new Date()),
+          buyPrice: latestBuy,
+          sellPrice: latestSell,
+          spread: latestSell - latestBuy,
+        });
+      }
+
+      // Compute day-over-day changes
+      for (let i = 0; i < history.length; i++) {
+        if (i === 0) {
+          history[i].changeAmount = 0;
+          history[i].changePercentage = 0;
+        } else {
+          const prev = history[i - 1];
+          const diff = history[i].sellPrice - prev.sellPrice;
+          history[i].changeAmount = diff;
+          history[i].changePercentage =
+            prev.sellPrice > 0 ? Math.round((diff / prev.sellPrice) * 10000) / 100 : 0;
+        }
+      }
+
+      const summary = calculateGoldTrendMetrics(history);
+      return { history, summary };
+    }
+  } catch (dbErr) {
+    console.warn(
+      "Failed to query gold_price_history from DB, falling back to simulated history:",
+      dbErr
+    );
+  }
+
+  // Fallback seed history (guarantees chart displays beautifully out-of-the-box)
+  const fallbackHistory = generateFallbackGoldHistory(days, latestBuy, latestSell);
+  const summary = calculateGoldTrendMetrics(fallbackHistory);
+
+  return {
+    history: fallbackHistory,
+    summary,
+  };
 }

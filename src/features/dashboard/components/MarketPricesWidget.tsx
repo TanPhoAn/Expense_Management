@@ -10,6 +10,7 @@ import {
   Minus,
   Sparkles,
   ExternalLink,
+  BarChart2,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,11 +19,13 @@ import { formatVND } from "@/lib/utils/currency";
 import { MarketPricesData } from "@/types";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { GoldPriceChartModal } from "./GoldPriceChartModal";
 
 export function MarketPricesWidget() {
   const [data, setData] = useState<MarketPricesData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isChartModalOpen, setIsChartModalOpen] = useState(false);
 
   const fetchPrices = useCallback(async (forceRefresh = false) => {
     if (forceRefresh) setIsRefreshing(true);
@@ -127,17 +130,31 @@ export function MarketPricesWidget() {
                 </div>
               </div>
 
-              {/* Live Badge */}
-              <Badge
-                variant="outline"
-                className="shrink-0 text-[10px] font-semibold border-amber-500/40 text-amber-700 dark:text-amber-300 bg-amber-500/10 gap-1.5 px-2 py-0.5"
-              >
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
-                </span>
-                <span>SJC Online</span>
-              </Badge>
+              {/* Actions & Live Badge */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsChartModalOpen(true)}
+                  className="h-7 px-2.5 text-xs font-semibold gap-1.5 text-amber-700 dark:text-amber-300 border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 hover:text-amber-800 dark:hover:text-amber-200 cursor-pointer shadow-xs transition-colors"
+                  title="Xem biểu đồ biến động giá vàng 7 ngày"
+                >
+                  <BarChart2 className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                  <span>Biểu đồ giá</span>
+                </Button>
+
+                <Badge
+                  variant="outline"
+                  className="hidden sm:inline-flex shrink-0 text-[10px] font-semibold border-amber-500/40 text-amber-700 dark:text-amber-300 bg-amber-500/10 gap-1.5 px-2 py-0.5"
+                >
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
+                  </span>
+                  <span>SJC Online</span>
+                </Badge>
+              </div>
             </div>
 
             {/* Price Numbers Section */}
@@ -249,6 +266,12 @@ export function MarketPricesWidget() {
           </CardContent>
         </Card>
       </div>
+
+      {/* SJC Gold 7-Day & 30-Day Trend Chart Modal */}
+      <GoldPriceChartModal
+        isOpen={isChartModalOpen}
+        onClose={() => setIsChartModalOpen(false)}
+      />
     </div>
   );
 }

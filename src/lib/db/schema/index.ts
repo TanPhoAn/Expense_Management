@@ -230,6 +230,26 @@ export const savingsGoalLogs = pgTable(
 );
 
 // -----------------------------------------------------------------------------
+// Gold Price History Table (Phase 26)
+// -----------------------------------------------------------------------------
+export const goldPriceHistory = pgTable(
+  'gold_price_history',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    buyPrice: integer('buy_price').notNull(),
+    sellPrice: integer('sell_price').notNull(),
+    spread: integer('spread').notNull(),
+    source: varchar('source', { length: 50 }).default('SJC').notNull(),
+    recordedAt: timestamp('recorded_at', { withTimezone: true, mode: 'date' })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => ({
+    recordedAtIdx: index('gold_price_history_recorded_at_idx').on(table.recordedAt.desc()),
+  })
+);
+
+// -----------------------------------------------------------------------------
 // Drizzle Relations
 // -----------------------------------------------------------------------------
 export const usersRelations = relations(users, ({ many }) => ({
@@ -312,3 +332,5 @@ export type InsertSavingsGoal = typeof savingsGoals.$inferInsert;
 export type SelectSavingsGoal = typeof savingsGoals.$inferSelect;
 export type InsertSavingsGoalLog = typeof savingsGoalLogs.$inferInsert;
 export type SelectSavingsGoalLog = typeof savingsGoalLogs.$inferSelect;
+export type InsertGoldPriceHistory = typeof goldPriceHistory.$inferInsert;
+export type SelectGoldPriceHistory = typeof goldPriceHistory.$inferSelect;
