@@ -428,14 +428,14 @@ export default function DashboardPage() {
                   {maskCurrency(formatVND(summary?.remainingBalance || "0"), isPrivacyMode)}
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-1 flex items-center justify-between">
-                  <span>{isBalanceNegative ? "Cảnh báo: Bội chi" : "Dòng tiền khả dụng"}</span>
+                  <span>{isBalanceNegative ? "Cảnh báo: Bội chi tổng" : "Tổng số dư ví khả dụng"}</span>
                   <span
                     className={cn(
                       "text-[10px] font-bold",
                       isBalanceNegative ? "text-rose-600 dark:text-rose-400" : "text-primary"
                     )}
                   >
-                    {isBalanceNegative ? "Âm" : "Dương"}
+                    Toàn thời gian
                   </span>
                 </p>
               </CardContent>

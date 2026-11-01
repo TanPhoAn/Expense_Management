@@ -17,7 +17,7 @@ export async function getDashboardSummary(
   const todayDate = getVietnamTodayString();
   const { startDate, endDate } = getMonthDateRange(selectedMonth);
 
-  // Single optimized SQL query aggregating today's expense and monthly totals
+  // Single optimized SQL query aggregating today's expense, monthly totals, and global all-time remaining balance
   const [result] = await db
     .select({
       todayExpense: sql<string>`COALESCE(SUM(CASE 
@@ -34,22 +34,28 @@ export async function getDashboardSummary(
         WHEN ${transactions.type} = 'EXPENSE' AND ${transactions.transactionDate} >= ${startDate} AND ${transactions.transactionDate} <= ${endDate} THEN ${transactions.amount} 
         ELSE 0 
       END), 0)::text`,
+
+      totalIncomeAllTime: sql<string>`COALESCE(SUM(CASE 
+        WHEN ${transactions.type} = 'INCOME' THEN ${transactions.amount} 
+        ELSE 0 
+      END), 0)::text`,
+
+      totalExpenseAllTime: sql<string>`COALESCE(SUM(CASE 
+        WHEN ${transactions.type} = 'EXPENSE' THEN ${transactions.amount} 
+        ELSE 0 
+      END), 0)::text`,
     })
     .from(transactions)
-    .where(
-      and(
-        eq(transactions.userId, userId),
-        sql`(
-          (${transactions.transactionDate} >= ${startDate} AND ${transactions.transactionDate} <= ${endDate})
-          OR (${transactions.transactionDate} = ${todayDate} AND ${transactions.type} = 'EXPENSE')
-        )`
-      )
-    );
+    .where(eq(transactions.userId, userId));
 
   const monthlyIncome = result?.monthlyIncome || '0';
   const monthlyExpense = result?.monthlyExpense || '0';
   const todayExpense = result?.todayExpense || '0';
-  const remainingBalance = subtractCurrency(monthlyIncome, monthlyExpense);
+  const totalIncomeAllTime = result?.totalIncomeAllTime || '0';
+  const totalExpenseAllTime = result?.totalExpenseAllTime || '0';
+
+  // Global all-time remaining balance (not restricted to the selected month)
+  const remainingBalance = subtractCurrency(totalIncomeAllTime, totalExpenseAllTime);
 
   return {
     month: selectedMonth,
@@ -57,6 +63,8 @@ export async function getDashboardSummary(
     monthlyIncome,
     monthlyExpense,
     remainingBalance,
+    totalIncomeAllTime,
+    totalExpenseAllTime,
     currency: 'VND',
     timezone: VIETNAM_TIMEZONE,
   };

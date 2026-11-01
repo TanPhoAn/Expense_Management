@@ -101,6 +101,16 @@ describe('Dashboard Aggregation Logic', () => {
         .reduce((sum, r) => addCurrency(sum, r.amount), '0');
     }
 
+    function simulateAllTimeRemainingBalance(rows: TxRow[]): string {
+      const totalIncome = rows
+        .filter((r) => r.type === 'INCOME')
+        .reduce((sum, r) => addCurrency(sum, r.amount), '0');
+      const totalExpense = rows
+        .filter((r) => r.type === 'EXPENSE')
+        .reduce((sum, r) => addCurrency(sum, r.amount), '0');
+      return subtractCurrency(totalIncome, totalExpense);
+    }
+
     const sampleRows: TxRow[] = [
       { type: 'INCOME', transactionDate: '2026-10-01', amount: '12000000' },
       { type: 'EXPENSE', transactionDate: '2026-10-05', amount: '55000' },
@@ -136,6 +146,21 @@ describe('Dashboard Aggregation Logic', () => {
       const expense = simulateMonthlyExpense(sampleRows, startDate, endDate);
       const balance = subtractCurrency(income, expense);
       expect(balance).toBe('12020000');
+    });
+
+    it('should compute global all-time remaining balance across multiple months', () => {
+      const multiMonthRows: TxRow[] = [
+        // Past month September: +15,000,000, -5,000,000
+        { type: 'INCOME', transactionDate: '2026-09-01', amount: '15000000' },
+        { type: 'EXPENSE', transactionDate: '2026-09-10', amount: '5000000' },
+        // Current month October: +12,500,000, -480,000
+        ...sampleRows,
+      ];
+      const globalBalance = simulateAllTimeRemainingBalance(multiMonthRows);
+      // Total Income: 15,000,000 + 12,500,000 = 27,500,000
+      // Total Expense: 5,000,000 + 480,000 = 5,480,000
+      // Global Balance: 27,500,000 - 5,480,000 = 22,020,000
+      expect(globalBalance).toBe('22020000');
     });
 
     it('should return 0 for today expense when no transactions match today', () => {

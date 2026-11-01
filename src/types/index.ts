@@ -41,7 +41,9 @@ export interface DashboardSummary {
   todayExpense: string; // VND string
   monthlyIncome: string; // VND string
   monthlyExpense: string; // VND string
-  remainingBalance: string; // VND string (can be negative)
+  remainingBalance: string; // VND string (can be negative) — Global all-time remaining balance
+  totalIncomeAllTime?: string;
+  totalExpenseAllTime?: string;
   currency: 'VND';
   timezone: 'Asia/Ho_Chi_Minh';
 }
